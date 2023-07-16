@@ -48,6 +48,7 @@ function MINES.ConnectionCheckStart()
                     return
                 end
                 MINES.CheckTimeStart = GetTime()
+                COOP_Send_GetConnectionStatus()
             end
         end
     end)

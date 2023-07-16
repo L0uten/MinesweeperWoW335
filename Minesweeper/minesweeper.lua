@@ -1,5 +1,5 @@
 MINES = InitAddon("Minesweeper", "Сапёр", "1.0")
-MINES:SetRevision("2023", "07", "16", "00", "00", "02")
+MINES:SetRevision("2023", "07", "16", "00", "00", "03")
 
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {
