@@ -26,20 +26,28 @@ MINES.ConnectionStatus = false
 MINES.ConnectionCheck = CreateFrame("Frame")
 MINES.CheckTimeStart = 0
 MINES.ConnectionWarnings = 0
+MINES.IsConnectionStable = true
 function MINES.ConnectionCheckStart()
     MINES.CheckTimeStart = GetTime()
-    local checkInterval = 4
+    local checkInterval = 3
     local maxWarnings = 3
     COOP_Send_GetConnectionStatus()
     MINES.ConnectionCheck:SetScript("OnUpdate", function()
         if (GetTime() >= MINES.CheckTimeStart + checkInterval) then
             if (MINES.ConnectionStatus) then
+                if (not MINES.IsConnectionStable) then
+                    MINES:PrintMsg("Подключение восстановлено.", "26ff1f")
+                end
+                checkInterval = 3
                 MINES.CheckTimeStart = GetTime()
                 MINES.ConnectionWarnings = 0
                 MINES.ConnectionStatus = false
                 COOP_Send_GetConnectionStatus()
             else
+                MINES.IsConnectionStable = false
                 MINES.ConnectionWarnings = MINES.ConnectionWarnings + 1
+                if (MINES.ConnectionWarnings == 1) then checkInterval = 5
+                elseif (MINES.ConnectionWarnings == 2) then checkInterval = 7 end
                 MINES:PrintMsg("Нет подключения со вторым игроком. Предупреждений: "..MINES.ConnectionWarnings.."/"..maxWarnings, "ff9100")
                 if (MINES.ConnectionWarnings == maxWarnings) then
                     MINES.ConnectionCheckStop()
