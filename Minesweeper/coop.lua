@@ -51,6 +51,7 @@ function MINES.ConnectionCheckStart()
                 elseif (MINES.ConnectionWarnings == 2) then checkInterval = 7 end
                 MINES:PrintMsg("Нет подключения со вторым игроком. Предупреждений: "..MINES.ConnectionWarnings.."/"..maxWarnings, "ff9100")
                 if (MINES.ConnectionWarnings == maxWarnings) then
+                    MINES.IsConnectionStable = true
                     MINES.ConnectionCheckStop()
                     MINES.DisconnectCOOP(0)
                     MINES:PrintMsg("Подключение со вторым игроком потеряно, КООП отключен.", "cf0a0a")
