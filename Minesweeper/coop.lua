@@ -37,6 +37,7 @@ function MINES.ConnectionCheckStart()
             if (MINES.ConnectionStatus) then
                 if (not MINES.IsConnectionStable) then
                     MINES:PrintMsg("Подключение восстановлено.", "26ff1f")
+                    MINES.IsConnectionStable = true
                 end
                 checkInterval = 3
                 MINES.CheckTimeStart = GetTime()
