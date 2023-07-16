@@ -28,7 +28,7 @@ MINES.CheckTimeStart = 0
 MINES.ConnectionWarnings = 0
 function MINES.ConnectionCheckStart()
     MINES.CheckTimeStart = GetTime()
-    local checkInterval = 3
+    local checkInterval = 4
     local maxWarnings = 3
     COOP_Send_GetConnectionStatus()
     MINES.ConnectionCheck:SetScript("OnUpdate", function()
@@ -153,6 +153,7 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
                 MINES.Field:Hide()
                 MINES.DisableField()
                 MINES.ClearingField()
+                MINES.SetDifficulty(MINES.NextDifficulty)
                 MINES.RefreshField()
                 MINES.Field.Settings:SetWidth(MINES.Field:GetWidth())
                 if (isFieldShown) then
@@ -169,7 +170,7 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             end
             -- Смена сложности у второго игрока
             if (arg1 == "mines_change_difficulty" and arg4 == MINES.PartnerName and not MINES.IsHosting) then
-                MINES.SetDifficulty(arg2)
+                MINES.NextDifficulty = arg2
             end
             -- Проигрыш
             if (arg1 == "mines_end_game" and arg4 == MINES.PartnerName) then

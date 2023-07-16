@@ -1,5 +1,5 @@
-MINES = InitAddon("Minesweeper", "Сапёр", 1.0)
-MINES:SetRevision("2023", "07", "16", "00", "00", "01")
+MINES = InitAddon("Minesweeper", "Сапёр", "1.0")
+MINES:SetRevision("2023", "07", "16", "00", "00", "02")
 
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {
@@ -500,6 +500,7 @@ function MINES.StartGameBT()
         end
         MINES.Field.StartGameButton:Hide()
         MINES.DisableField()
+        print(MINES.NextDifficulty)
         COOP_Send_ChangeDifficulty(MINES.NextDifficulty)
         COOP_Send_CreateNewGame()
         return
