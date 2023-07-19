@@ -1,8 +1,11 @@
+local AddOnName, Engine = ...
+local LoutenLib, MINES = unpack(Engine)
+
 MINES.COOPMode = false
 MINES.IsHosting = false
 MINES.PartnerName = nil
 
-MINES.PartnerCursor = CreateNewFrame(UIParent)
+MINES.PartnerCursor = LoutenLib:CreateNewFrame(UIParent)
 MINES.PartnerCursor:InitNewFrame(25, 25,
                             "BOTTOMLEFT", nil, "BOTTOMLEFT", 0, 0,
                             1,1,0,1,
@@ -223,6 +226,12 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
         end
     end
 end)
+
+
+
+
+
+
     -- Send Leave COOP --
 -- Send
 function COOP_Send_SendLeaveCOOP()

@@ -1,4 +1,7 @@
-MINES = InitAddon("Minesweeper", "Сапёр", "1.1")
+local AddOnName, Engine = ...
+local LoutenLib, MINES = unpack(Engine)
+
+LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.2")
 MINES:SetRevision("2023", "07", "16", "00", "01", "00")
 
 -- СЛОЖНОСТЬ ИГРЫ
@@ -23,7 +26,7 @@ MINES.CurrentDifficulty = "easy"
 MINES.NextDifficulty = "easy"
 
 -- ПОЛЕ ИГРЫ
-MINES.Field = CreateNewFrame(UIParent)
+MINES.Field = LoutenLib:CreateNewFrame(UIParent)
 local fieldHeaderH = 23
 
 -- ЯЧЕЙКИ
@@ -71,14 +74,14 @@ local function CreateNewField(difficulty)
         end
     end)
     MINES.Field:SetFrameStrata("HIGH")
-    MINES.Field.Header = CreateNewFrame(MINES.Field)
+    MINES.Field.Header = LoutenLib:CreateNewFrame(MINES.Field)
     
     for y = 0, MINES.GameDifficulty["hard"].fieldHeight / cellsH - 1 do
         for x = 0, MINES.GameDifficulty["hard"].fieldWidth / cellsW - 1 do
             local c = #MINES.Field.Cells
     
             -- Back cells
-            MINES.Field.Cells[c+1] = CreateNewFrame(MINES.Field)
+            MINES.Field.Cells[c+1] = LoutenLib:CreateNewFrame(MINES.Field)
             MINES.Field.Cells[c+1].Mined = false
             MINES.Field.Cells[c+1].MinesInRange = 0
             MINES.Field.Cells[c+1].Flag = false
@@ -427,6 +430,7 @@ function MINES.StartGame()
     MINES.AddTextToCells()
     MINES.EnableField()
     MINES:PrintMsg("Начата новая игра.")
+    MINES.Field.StartGameButton:EnableMouse(true)
 end
 function MINES.PreparingGame()
     local isFieldShown = MINES.Field:IsShown()
@@ -479,7 +483,7 @@ MINES.Field:Hide()
 
 
 -- Интерфейс игры
-MINES.Field.StartGameButton = CreateNewFrame(MINES.Field)
+MINES.Field.StartGameButton = LoutenLib:CreateNewFrame(MINES.Field)
 MINES.Field.StartGameButton:InitNewFrame(160, 40,
                             "TOP", MINES.Field, "TOP", 0, 40,
                             .3,1,.3,1,
@@ -493,6 +497,7 @@ MINES.Field.StartGameButton:InitNewButton(.5,1,.5,1,
                                     end, nil)
 MINES.Field.StartGameButton:SetTextToFrame("CENTER", MINES.Field.StartGameButton, "CENTER", 0, 0, true, 16, "Начать игру")
 function MINES.StartGameBT()
+    MINES.Field.StartGameButton:EnableMouse(false)
     if (MINES.COOPMode) then
         if (not MINES.IsHosting) then
             COOP_Send_StartGamePartner()
@@ -500,7 +505,6 @@ function MINES.StartGameBT()
         end
         MINES.Field.StartGameButton:Hide()
         MINES.DisableField()
-        print(MINES.NextDifficulty)
         COOP_Send_ChangeDifficulty(MINES.NextDifficulty)
         COOP_Send_CreateNewGame()
         return
@@ -514,7 +518,7 @@ MINES.Field.Header:InitNewFrame(MINES.Field:GetWidth(), fieldHeaderH,
                             .05,.05,.05,1,
                             false, false, nil)
 MINES.Field.Header:SetTextToFrame("CENTER", MINES.Field.Header, "CENTER", 0,0, true, 13, MINES.Info.Name)
-MINES.Field.Header.CloseButton = CreateNewFrame(MINES.Field.Header)
+MINES.Field.Header.CloseButton = LoutenLib:CreateNewFrame(MINES.Field.Header)
 MINES.Field.Header.CloseButton:InitNewFrame(MINES.Field.Header:GetHeight(), MINES.Field.Header:GetHeight(),
                                         "RIGHT", MINES.Field.Header, "RIGHT", 0, 0,
                                         0,0,0,1,
@@ -531,7 +535,7 @@ MINES.Field.Header.CloseButton:InitNewButton(.4,0,0,1,
                                         end)
 
 
-MINES.Field.Header.HideButton = CreateNewFrame(MINES.Field.Header)
+MINES.Field.Header.HideButton = LoutenLib:CreateNewFrame(MINES.Field.Header)
 MINES.Field.Header.HideButton:InitNewFrame(MINES.Field.Header:GetHeight(), MINES.Field.Header:GetHeight(),
                                         "LEFT", MINES.Field.Header.CloseButton, "LEFT", -MINES.Field.Header:GetHeight(), 0,
                                         0,0,0,1,
@@ -619,20 +623,20 @@ MINES.Field.Header.HideButton:InitNewButton(.4,.4,.2,1,
                                             end
                                             MINES.IsGameHidden = not MINES.IsGameHidden
                                         end)
-MINES.Field.Header.PartnerInfo = CreateNewFrame(MINES.Field.Header)
+MINES.Field.Header.PartnerInfo = LoutenLib:CreateNewFrame(MINES.Field.Header)
 MINES.Field.Header.PartnerInfo:InitNewFrame(200, fieldHeaderH,
                                         "LEFT", MINES.Field.Header, "LEFT", 10, 0,
                                         0,0,0,0, false, false, nil)
 MINES.Field.Header.PartnerInfo:SetTextToFrame("LEFT", MINES.Field.Header.PartnerInfo, "LEFT", 0,0, true, 11, "COOP:")
 MINES.Field.Header.PartnerInfo:Hide()
 MINES.Field.Header.PartnerInfo.Text:SetTextColor(.5,1,.5,1)
-MINES.Field.SettingsButton = CreateNewFrame(MINES.Field)
+MINES.Field.SettingsButton = LoutenLib:CreateNewFrame(MINES.Field)
 MINES.Field.SettingsButton:InitNewFrame(130, 25,
                                     "TOPLEFT", MINES.Field, "TOPLEFT", 0, 25,
                                     0,0,0,1,
                                     true, false, nil)
 MINES.Field.SettingsButton:SetTextToFrame("CENTER", MINES.Field.SettingsButton, "CENTER", 0,0, true, MINES.Field.SettingsButton:GetHeight() / 2.1, "Настройки")
-MINES.Field.SettingsButton.Arrow = CreateNewFrame(MINES.Field.SettingsButton)
+MINES.Field.SettingsButton.Arrow = LoutenLib:CreateNewFrame(MINES.Field.SettingsButton)
 MINES.Field.SettingsButton.Arrow:InitNewFrame(MINES.Field.SettingsButton:GetHeight()/1.5, MINES.Field.SettingsButton:GetHeight()/1.5,
                                                     "RIGHT", MINES.Field.SettingsButton, "RIGHT", -(MINES.Field.SettingsButton:GetHeight()*0.1), 0,
                                                     0,0,0,0,
@@ -656,7 +660,7 @@ MINES.Field.SettingsButton:InitNewButton(.15,.15,.15,1,
                                         end
                                     end, nil)
 MINES.Field.SettingsButton.IsActive = false
-MINES.Field.Settings = CreateNewFrame(MINES.Field.Header)
+MINES.Field.Settings = LoutenLib:CreateNewFrame(MINES.Field.Header)
 MINES.Field.Settings:InitNewFrame(MINES.Field:GetWidth(), MINES.Field:GetHeight() - fieldHeaderH,
                                 "TOP", MINES.Field.Header, "TOP", 0, -fieldHeaderH,
                                 0,0,0,.8,
@@ -726,12 +730,12 @@ function MINES.OpenSettings()
         end
     end)
 end
-MINES.Field.Settings.Box = CreateNewFrame(MINES.Field.Settings)
+MINES.Field.Settings.Box = LoutenLib:CreateNewFrame(MINES.Field.Settings)
 MINES.Field.Settings.Box:InitNewFrame(MINES.GameDifficulty["easy"].fieldWidth * 0.75, MINES.Field.Settings:GetHeight() * 0.85,
                                     "CENTER", MINES.Field.Settings, "CENTER", 0,0,
                                     0,0,0,0, false, false, nil)
 MINES.Field.Settings.Box:Hide()
-MINES.Field.Settings.ChangeDifficulty = CreateNewFrame(MINES.Field.Settings.Box)
+MINES.Field.Settings.ChangeDifficulty = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
 MINES.Field.Settings.ChangeDifficulty:InitNewFrame(180, 25,
                                     "TOP", MINES.Field.Settings.Box, "TOP", 0, 0,
                                     .2,.2,.2,.735,
@@ -760,20 +764,20 @@ MINES.Field.Settings.ChangeDifficulty:InitNewDropDownList(MINES.Field.Settings.C
                                                 MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Hard")
                                             end}, "Button", nil)
 
-MINES.Field.Settings.InvitePlayerBox = CreateNewFrame(MINES.Field.Settings.Box)
+MINES.Field.Settings.InvitePlayerBox = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
 MINES.Field.Settings.InvitePlayerBox:InitNewFrame(170, 42,
                                             "BOTTOM", MINES.Field.Settings.ChangeDifficulty, "BOTTOM", 0, -120,
                                             0,0,0,0, false, false, nil)
-MINES.Field.Settings.InvitePlayerBox.Text = CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
+MINES.Field.Settings.InvitePlayerBox.Text = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
 MINES.Field.Settings.InvitePlayerBox.Text:SetTextToFrame("TOPLEFT", MINES.Field.Settings.InvitePlayerBox, "TOPLEFT", 0,0, true, 12, "Пригласить игрока:")
-MINES.Field.Settings.InvitePlayerBox.Input = CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
+MINES.Field.Settings.InvitePlayerBox.Input = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
 MINES.Field.Settings.InvitePlayerBox.Input:InitNewFrame(140, 18,
                                             "BOTTOMLEFT", MINES.Field.Settings.InvitePlayerBox, "BOTTOMLEFT", 0, 0,
                                             .8,.8,.8,1,
                                             true, false, nil)
 MINES.Field.Settings.InvitePlayerBox.Input:InitNewInput(13, 20, 0,0,.1,1,
                                             nil, nil)
-MINES.Field.Settings.InvitePlayerBox.SendButton = CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
+MINES.Field.Settings.InvitePlayerBox.SendButton = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
 MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewFrame(25, 18,
                                                         "BOTTOMRIGHT", MINES.Field.Settings.InvitePlayerBox, "BOTTOMRIGHT", 0,0,
                                                         1,.3,.1,1, true, false, nil)
@@ -786,13 +790,13 @@ MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewButton(1,.4,.2,1,
                                                             COOP_Send_InvitePartner(MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText())
                                                         end)
 
-MINES.Field.MinesLeft = CreateNewFrame(MINES.Field)
+MINES.Field.MinesLeft = LoutenLib:CreateNewFrame(MINES.Field)
 MINES.Field.MinesLeft:InitNewFrame(50, 30,
                                 "TOP", MINES.Field, "TOP", 150, 30,
                                 0,0,0,.85, false, false, nil)
 MINES.Field.MinesLeft:SetTextToFrame("CENTER", MINES.Field.MinesLeft, "CENTER", 0,0, true, 15, tostring(MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount))
 
-MINES.Field.Settings.LeaveCOOP = CreateNewFrame(MINES.Field.Settings.Box)
+MINES.Field.Settings.LeaveCOOP = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
 MINES.Field.Settings.LeaveCOOP:InitNewFrame(120, 23,
                                         "BOTTOM", MINES.Field.Settings.InvitePlayerBox, "BOTTOM", 0, -40,
                                         .7,0,0,1, true, false, nil)
@@ -808,7 +812,7 @@ MINES.Field.Settings.LeaveCOOP:InitNewButton(1,.1,.1,1,
                                         end)
 MINES.Field.Settings.LeaveCOOP:Hide()
 
-MINES.Field.Settings.LeaveMeAlone = CreateNewFrame(MINES.Field.Settings.Box)
+MINES.Field.Settings.LeaveMeAlone = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
 MINES.Field.Settings.LeaveMeAlone:InitNewFrame(100, 25,
                                                 "BOTTOM", MINES.Field.Settings.LeaveCOOP, "BOTTOM", -40, -40,
                                                 0,0,0,0, true, false, nil)
@@ -839,7 +843,7 @@ SLASH_MINES1 = "/mines"
 SLASH_MINES2 = "/minesweeper"
 
 MINES:LoadedFunction(function()
-    MINES_DB = InitDataStorage(MINES_DB)
+    MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
     if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
         MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
     end
