@@ -438,7 +438,6 @@ Engine[1].DelayAction = function(s, time, func, cancelSameFunc)
                         streams[i].f:SetScript("OnUpdate", nil)
                         table.wipe(streams[i].f)
                         streams[i].f = nil
-                        table.wipe(streams[i].t)
                         streams[i].t = nil
                         table.wipe(streams[i])
                         streams[i] = nil
@@ -650,7 +649,7 @@ Engine[1].InitAddon = function(s, fileName, name, version)
             end)
         end
         notificationShow()
-        Engine[1].DelayAction(10, notificationClose, true)
+        Engine[1]:DelayAction(10, notificationClose, true)
     end
 
     Engine[2].NotifyForceClose = function(self)
