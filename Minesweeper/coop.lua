@@ -95,12 +95,13 @@ local getCOOPInfo = CreateFrame("Frame")
 getCOOPInfo:RegisterEvent("CHAT_MSG_ADDON")
 getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
     if (e == "CHAT_MSG_ADDON") then
+        -- Уведомление второму игроку об приглашении
         if (arg1 == "mines_invite") then
             if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
                 COOP_Send_LeaveMeAlone(arg4)
                 return
             end
-
+            COOP_Send_GotInvite(arg4)
             MINES:Notify("Игрок "..arg4.." приглашает вас в КООП режим.", true,
                 function()
                     MINES.EndGame = true
@@ -113,14 +114,20 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
                     MINES.Field.Header.PartnerInfo.Text:SetText("COOP: "..MINES.PartnerName)
                     MINES.Field.Header.PartnerInfo:Show()
                     MINES.Field.Settings.LeaveCOOP:Show()
+                    MINES.Field.StartGameButton:Hide()
                     MINES.ConnectionCheckStart()
                 end, function() MINES:NotifyForceClose() end)
+            return
         end
-
+        
+        -- Уведомление первому игроку о принятии приглашения вторым игроком
         if (arg1 == "mines_accept_invite") then
-            MINES.EndGame = true
             MINES.DisableField()
-            MINES.Field.StartGameButton:Show()
+            if (not MINES.EndGame) then
+                MINES.Field.ResumeGame:Show()
+            else
+                MINES.Field.StartGameButton:Show()
+            end
             MINES:Notify("Игрок "..arg4.." принял ваше приглашение.")
             MINES.PartnerName = arg4
             MINES.COOPMode = true
@@ -129,10 +136,18 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             MINES.Field.Header.PartnerInfo:Show()
             MINES.Field.Settings.LeaveCOOP:Show()
             MINES.ConnectionCheckStart()
+            return
         end
 
+        -- Уведомление первому игроку о том что до второго игрока дошло приглашение
+        if (arg1 == "mines_got_invite") then
+            MINES:Notify("Игроку "..arg4.." было отправлено приглашение.")
+            return
+        end
+        -- Уведомление первого игрока о том что у второго игрока отключены приглашения
         if (arg1 == "mines_leave_me_alone") then
             MINES:Notify("Вы не можете пригласить "..arg4..", так как этот игрок отключил приглашения.")
+            return
         end
 
         if (MINES.COOPMode) then
@@ -142,10 +157,12 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             -- Получение позиции курсора второго игрока
             if (arg1 == "mines_cursor" and arg4 == MINES.PartnerName) then
                 MINES.SetCursorTo(MINES.Field.Cells[tonumber(arg2)])
+                return
             end
             -- Получение открытой ячейки
             if (arg1 == "mines_opened_cell" and arg4 == MINES.PartnerName) then
                 MINES.OpenCell(tonumber(arg2))
+                return
             end
             -- Добавление мин на поле
             if (arg1 == "mines_add_mine" and arg4 == MINES.PartnerName and not MINES.IsHosting) then
@@ -155,11 +172,13 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
                 end
 
                 COOP_Status_CreatingMinesOnField()
+                return
             end
             -- Старт игры у второго игрока
             if (arg1 == "mines_start_game" and arg4 == MINES.PartnerName) then
                 MINES.StartGame()
                 COOP_Status_IsReadyStartGame()
+                return
             end
             -- Создание игры
             if (arg1 == "mines_new_game" and arg4 == MINES.PartnerName and not MINES.IsHosting) then
@@ -177,34 +196,69 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
                 MINES.Field.MinesLeft.Text:SetText(MINES.MinesLeft)
                 MINES.EndGame = false
                 COOP_Status_IsReadyCreateNewGame()
+                return
             end
             -- Установка флажка
             if (arg1 == "mines_set_flag" and arg4 == MINES.PartnerName) then
                 MINES.SetFlag(tonumber(arg2))
+                return
             end
             -- Смена сложности у второго игрока
             if (arg1 == "mines_change_difficulty" and arg4 == MINES.PartnerName and not MINES.IsHosting) then
                 MINES.NextDifficulty = arg2
+                return
             end
             -- Проигрыш
             if (arg1 == "mines_end_game" and arg4 == MINES.PartnerName) then
                 MINES.LoseGame()
+                return
             end
             -- Нажатие Start Game вторым игроком
             if (arg1 == "mines_start_game_partner" and arg4 == MINES.PartnerName and MINES.IsHosting) then
                 MINES.StartGameBT()
+                return
             end
             -- Проверка подключения
             if (arg1 == "mines_get_connection_status" and arg4 == MINES.PartnerName) then
                 COOP_Send_SendConnectionStatus()
+                return
             end
 
             if (arg1 == "mines_send_connection_status" and arg4 == MINES.PartnerName) then
                 MINES.ConnectionStatus = true
+                return
             end
             -- Отключение от кооп
             if (arg1 == "mines_send_leave_coop" and arg4 == MINES.PartnerName) then
                 MINES.DisconnectCOOP(2)
+                return
+            end
+
+
+            if (arg1 == "mines_resume_mines" and arg4 == MINES.PartnerName) then
+                local coopMines = {strsplit(" ", arg2)}
+                for i = 1, #coopMines do
+                    MINES.Field.Cells[tonumber(coopMines[i])].Mined = true
+                end
+                return
+            end
+
+            if (arg1 == "mines_resume_opened_cells" and arg4 == MINES.PartnerName) then
+                local coopMines = {strsplit(" ", arg2)}
+                for i = 1, #coopMines do
+                    MINES.Field.Cells[tonumber(coopMines[i])].Opened = true
+                    MINES.Field.Cells[tonumber(coopMines[i])].Text:Show()
+                    MINES.GreenToGrayCell(tonumber(coopMines[i]))
+                end
+                return
+            end
+
+            if (arg1 == "mines_resume_flags" and arg4 == MINES.PartnerName) then
+                local coopMines = {strsplit(" ", arg2)}
+                for i = 1, #coopMines do
+                    MINES.SetFlag(tonumber(coopMines[i]))
+                end
+                return
             end
 
 
@@ -212,22 +266,68 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             -- Get Status --
             -- Статус второго игрога на создание игры
             if (arg1 == "mines_status_new_game" and arg4 == MINES.PartnerName and MINES.IsHosting) then
+                if (MINES.Field.ResumeGame:IsShown()) then
+                    local mines = nil
+                    local opened = nil
+                    local flags = nil
+                    for i = 1, MINES.GetActualMaxCells() do
+                        if (MINES.Field.Cells[i].Mined) then
+                            if (not mines) then
+                                mines = tostring(i)
+                            else
+                                mines = mines.." "..tostring(i)
+                            end
+                        end
+                        if (MINES.Field.Cells[i].Opened) then
+                            if (not opened) then
+                                opened = tostring(i)
+                            else
+                                opened = opened.." "..tostring(i)
+                            end
+                        end
+                        if (MINES.Field.Cells[i].Flag) then
+                            if (not flags) then
+                                flags = tostring(i)
+                            else
+                                flags = flags.." "..tostring(i)
+                            end
+                        end
+                    end
+                    COOP_Send_ResumeMines(mines)
+                    if (opened) then COOP_Send_ResumeOpenedCells(opened) end
+                    if (flags) then COOP_Send_ResumeFlags(flags)end
+                    COOP_Send_StartGame()
+                    MINES.Field.ResumeGame:Hide()
+                    MINES.EnableField()
+                    return
+                end
                 MINES.PreparingGame()
+                return
             end
             -- Статус второго игрока на подготовку мин
             if (arg1 == "mines_status_add_mine" and arg4 == MINES.PartnerName and MINES.IsHosting) then
                 COOP_Send_StartGame()
                 MINES.StartGame()
+                return
             end
             -- Статус второго игрока на начало игры
             if (arg1 == "mines_status_start_game" and arg4 == MINES.PartnerName and MINES.IsHosting) then
                 IsReadyStartGame = true
+                return
             end
         end
     end
 end)
 
-
+function COOP_Send_ResumeMines(mines)
+    SendAddonMessage("mines_resume_mines", mines, "WHISPER", MINES.PartnerName)
+end
+function COOP_Send_ResumeOpenedCells(openedCells)
+    SendAddonMessage("mines_resume_opened_cells", openedCells, "WHISPER", MINES.PartnerName)
+end
+function COOP_Send_ResumeFlags(flags)
+    SendAddonMessage("mines_resume_flags", flags, "WHISPER", MINES.PartnerName)
+end
 
 
 
@@ -287,6 +387,14 @@ function COOP_Send_EndGame()
     SendAddonMessage("mines_end_game", "1", "WHISPER", MINES.PartnerName)
 end
 
+
+
+
+    -- Got invite --
+-- Send
+function COOP_Send_GotInvite(inviter)
+    SendAddonMessage("mines_got_invite", "1", "WHISPER", inviter)
+end
 
 
 

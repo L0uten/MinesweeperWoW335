@@ -1,8 +1,8 @@
 local AddOnName, Engine = ...
 local LoutenLib, MINES = unpack(Engine)
 
-LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.2")
-MINES:SetRevision("2023", "07", "20", "00", "02", "00")
+LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.3")
+MINES:SetRevision("2023", "07", "21", "00", "01", "00")
 
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {
@@ -41,7 +41,6 @@ MINES.CellsLeft = ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / c
 MINES.Timer = CreateFrame("Frame")
 MINES.StartTime = 0
 MINES.IsGameHidden = false
-
 
 
 
@@ -348,6 +347,7 @@ function MINES.MineCells()
         end
         i = i + 1
     end
+
     if (MINES.COOPMode) then
         COOP_Send_CreatingMinesOnField(minesCoopList)
     end
@@ -787,7 +787,11 @@ MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewButton(1,.4,.2,1,
                                                         1,.2,.05,1,
                                                         1,.4,.2,1, nil,
                                                         function()
-                                                            COOP_Send_InvitePartner(MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText())
+                                                            if (MINES.COOPMode) then return end
+                                                            if (MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText() ~= UnitName("player")) then
+                                                                COOP_Send_InvitePartner(MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText())
+                                                                return
+                                                            end
                                                         end)
 
 MINES.Field.MinesLeft = LoutenLib:CreateNewFrame(MINES.Field)
@@ -802,14 +806,14 @@ MINES.Field.Settings.LeaveCOOP:InitNewFrame(120, 23,
                                         .7,0,0,1, true, false, nil)
 MINES.Field.Settings.LeaveCOOP:SetTextToFrame("CENTER", MINES.Field.Settings.LeaveCOOP, "CENTER", 0,0, true, 11, "Покинуть КООП")
 MINES.Field.Settings.LeaveCOOP:InitNewButton(1,.1,.1,1,
-                                        .7,0,0,1,
-                                        .6,0,0,1,
-                                        1,.1,.1,1,
-                                        nil, 
-                                        function()
-                                            COOP_Send_SendLeaveCOOP()
-                                            MINES.DisconnectCOOP(1)
-                                        end)
+                                            .7,0,0,1,
+                                            .6,0,0,1,
+                                            1,.1,.1,1,
+                                            nil, 
+                                            function()
+                                                COOP_Send_SendLeaveCOOP()
+                                                MINES.DisconnectCOOP(1)
+                                            end)
 MINES.Field.Settings.LeaveCOOP:Hide()
 
 MINES.Field.Settings.LeaveMeAlone = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
@@ -821,6 +825,33 @@ MINES.Field.Settings.LeaveMeAlone:InitNewCheckButton(30, false, "Отключи�
                                                             MINES_DB.Profiles[UnitName("player")].LeaveMeAlone = not MINES_DB.Profiles[UnitName("player")].LeaveMeAlone
                                                         end)
 
+
+MINES.Field.ResumeGame = LoutenLib:CreateNewFrame(MINES.Field)
+MINES.Field.ResumeGame:Hide()
+MINES.Field.ResumeGame:InitNewFrame(MINES.Field.Settings.Box:GetWidth(), 60,
+                                    "CENTER", MINES.Field, "CENTER", 0,0,
+                                    0,0,0,.735, true, false, nil)
+MINES.Field.ResumeGame.ResumeBT = LoutenLib:CreateNewFrame(MINES.Field.ResumeGame)
+MINES.Field.ResumeGame.ResumeBT:InitNewFrame2(MINES.Field.ResumeGame:GetWidth()/2 * .9, MINES.Field.ResumeGame:GetHeight() * .7,
+                                                "LEFT", MINES.Field.ResumeGame, "LEFT", 10,0,
+                                                250, 128, 52,1, true, false, nil)
+MINES.Field.ResumeGame.ResumeBT:InitNewButton2(250, 128, 52,1,
+                                                nil, function()
+                                                    COOP_Send_ChangeDifficulty(MINES.CurrentDifficulty)
+                                                    COOP_Send_CreateNewGame()
+                                                end)
+MINES.Field.ResumeGame.ResumeBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.ResumeBT, "CENTER", 0,0, true, 12, "Продолжить игру")
+
+MINES.Field.ResumeGame.NewGameBT = LoutenLib:CreateNewFrame(MINES.Field.ResumeGame)
+MINES.Field.ResumeGame.NewGameBT:InitNewFrame2(MINES.Field.ResumeGame:GetWidth()/2 * .9, MINES.Field.ResumeGame:GetHeight() * .7,
+                                                "RIGHT", MINES.Field.ResumeGame, "RIGHT", -10,0,
+                                                125, 255, 92, 1, true, false, nil)
+MINES.Field.ResumeGame.NewGameBT:InitNewButton2(125, 255, 92, 1,
+                                                nil, function()
+                                                    MINES.Field.ResumeGame:Hide()
+                                                    MINES.StartGameBT()
+                                                end)
+MINES.Field.ResumeGame.NewGameBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.NewGameBT, "CENTER", 0,0, true, 12, "Начать новую игру")
 function MINES.RestartFieldInterface()
     local function RestorePoint(f)
         local point, relativeTo, relativePoint, xOfs, yOfs = f:GetPoint()
@@ -842,9 +873,120 @@ end
 SLASH_MINES1 = "/mines"
 SLASH_MINES2 = "/minesweeper"
 
+
 MINES:LoadedFunction(function()
     MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
     if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
         MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
     end
 end)
+
+
+-- local function anim()
+--     anims = {}
+--     function setpoint(f, x, y, toX, toY)
+--         local point, relativeTo, relativePoint, xOfs, yOfs = f:GetPoint()
+--         f:ClearAllPoints()
+--         if (toX == "+" and toY == "+") then
+--             f:SetPoint(point, relativeTo, relativePoint, xOfs + x, yOfs + y)
+--         elseif (toX == "+" and toY == "-") then
+--             f:SetPoint(point, relativeTo, relativePoint, xOfs + x, yOfs - y)
+--         elseif (toX == "-" and toY == "-") then
+--             f:SetPoint(point, relativeTo, relativePoint, xOfs - x, yOfs - y)
+--         elseif (toX == "-" and toY == "+") then
+--             f:SetPoint(point, relativeTo, relativePoint, xOfs - x, yOfs + y)
+--         end
+--     end
+--     function randomFloat(lower, greater)
+--         return lower + math.random()  * (greater - lower);
+--     end
+--     local animSpeed = 0
+--     local startTime = GetTime()
+--     for i = 0, MINES.GetActualMaxCells() / 2 do
+--         anims[i] = {}
+--         anims[i].i = 0.1
+--         anims[i].fn = function() end
+--         anims[i].st = startTime
+--         anims[i].s = 1
+--         anims[i].x = randomFloat(0,0.6)
+--         anims[i].y = randomFloat(0,0.6)
+--         anims[i].rf = random(0,1)
+--         anims[i].r = random(0, MINES.GetActualMaxCells())
+--         anims[i].f = CreateFrame("Frame")
+--         anims[i].f:SetScript("OnUpdate", function()
+--             anims[i].fn()
+--             if (GetTime() >= anims[i].st + anims[i].i and anims[i].st ~= 0) then
+--                 if (anims[i].rf == 0) then
+--                     if (anims[i].s == 1) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") end
+--                         anims[i].s = anims[i].s + 1
+--                     elseif (anims[i].s == 2) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") end
+--                         anims[i].s = anims[i].s + 1
+--                     elseif (anims[i].s == 3) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") end
+--                         anims[i].s = anims[i].s + 1
+--                     elseif (anims[i].s == 4) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") end
+--                         anims[i].s = 1
+--                     end
+--                 else
+--                     if (anims[i].s == 1) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") end
+--                         anims[i].s = anims[i].s + 1
+--                     elseif (anims[i].s == 2) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") end
+--                         anims[i].s = anims[i].s + 1
+--                     elseif (anims[i].s == 3) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") end
+--                         anims[i].s = anims[i].s + 1
+--                     elseif (anims[i].s == 4) then
+--                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") end
+--                         anims[i].s = 1
+--                     end
+--                 end
+--                 anims[i].st = GetTime()
+--                 anims[i].i = anims[i].i - 0.001
+--                 if (anims[i].i <= 0) then
+--                     anims[i].s = 0
+--                     anims[i].i = 1
+--                     anims[i].x = anims[i].x * 13
+--                     anims[i].y = anims[i].y * 13
+--                     anims[i].a = 0.03
+--                     if (anims[i].rf == 0) then
+--                         if (anims[i].s == 1) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         elseif (anims[i].s == 2) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         elseif (anims[i].s == 3) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         elseif (anims[i].s == 4) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         end
+--                     else
+--                         if (anims[i].s == 1) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         elseif (anims[i].s == 2) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         elseif (anims[i].s == 3) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         elseif (anims[i].s == 4) then
+--                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
+--                         end
+--                     end
+--                     anims[i].st = 0
+--                     -- anims[i].f:SetScript("OnUpdate", nil)
+--                     -- anims[i].fn = nil
+--                 end
+--             end
+--         end)
+--     end
+-- end
+
+-- SlashCmdList.TESTTT = function(msg, editBox)
+--     if (#msg == 0) then
+--         anim()
+--     end
+-- end
+
+-- SLASH_TESTTT1 = "/t123"
