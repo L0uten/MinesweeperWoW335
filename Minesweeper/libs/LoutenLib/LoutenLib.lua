@@ -50,6 +50,51 @@ Engine[1].CreateNewFrame = function(s, parent)
         end
     end
 
+    function uiFrame:InitNewFrame2(  width, height,
+                                    point, pointParent, pointTo, pointX, pointY,
+                                    redColorBg, greenColorBg, blueColorBg, alphaColorBg,
+                                    enableMouse,
+                                    movable, functionOnDragStop)
+        local function setupColor(color)
+            local colorButton
+            if (color > 255) then
+                colorButton = 1
+            else
+                colorButton = color/255 - 0.1
+                if (colorButton < 0) then colorButton = 0 end
+            end
+            return colorButton
+        end
+        redColorBg = setupColor(redColorBg)
+        greenColorBg = setupColor(greenColorBg)
+        blueColorBg = setupColor(blueColorBg)
+        
+        self:SetSize(width, height)
+        if (pointParent) then
+            if (pointParent.ScrollChild) then
+                self:SetPoint(point, pointParent.ScrollChild, pointTo, pointX, pointY)
+            else
+                self:SetPoint(point, pointParent, pointTo, pointX, pointY)
+            end
+        else
+            self:SetPoint(point, pointParent, pointTo, pointX, pointY)
+        end
+        self.Texture = self:CreateTexture()
+        self.Texture:SetAllPoints()
+        self.Texture:SetTexture(redColorBg, greenColorBg, blueColorBg, alphaColorBg) -- 0.735 alpha = 1 tooltip alpha
+        self:EnableMouse(enableMouse)
+        self:SetMovable(movable)
+
+        if (movable) then
+            self:RegisterForDrag("LeftButton")
+            self:SetScript("OnDragStart", self.StartMoving)
+            self:SetScript("OnDragStop", function()
+                self:StopMovingOrSizing()
+                if (functionOnDragStop) then functionOnDragStop() end
+            end)
+        end
+    end
+
     function uiFrame:InitNewButton( redColorOnEnter, greenColorOnEnter, blueColorOnEnter, alphaColorOnEnter,
                                     redColorOnLeave, greenColorOnLeave, blueColorOnLeave, alphaColorOnLeave,
                                     redColorOnMouseDown, greenColorOnMouseDown, blueColorOnMouseDown, alphaColorOnMouseDown,
@@ -95,6 +140,84 @@ Engine[1].CreateNewFrame = function(s, parent)
                 self.Texture:SetTexture(redColorOnMouseUp, greenColorOnMouseUp, blueColorOnMouseUp, alphaColorOnMouseUp)
             else
                 self.Texture:SetTexture(redColorOnLeave, greenColorOnLeave, blueColorOnLeave, alphaColorOnLeave)
+            end
+
+            if (functionOnMouseUp) then functionOnMouseUp() end
+        end)
+    end
+
+    function uiFrame:InitNewButton2(red, green, blue, alpha,
+                                    functionOnMouseDown, functionOnMouseUp)
+        local  redColorOnEnter, greenColorOnEnter, blueColorOnEnter,
+        redColorOnLeave, greenColorOnLeave, blueColorOnLeave,
+        redColorOnMouseDown, greenColorOnMouseDown, blueColorOnMouseDown,
+        redColorOnMouseUp, greenColorOnMouseUp, blueColorOnMouseUp
+        local function setupColor(color)
+            local colorButton, colorOnEnter, colorOnLeave, colorOnMouseDown, colorOnMouseUp
+            if (color > 255) then
+                colorButton = 1
+            else
+                colorButton = color/255 - 0.1
+                if (colorButton < 0) then colorButton = 0 end
+            end
+
+            colorOnEnter = colorButton + 0.1
+            if (colorOnEnter > 1) then colorOnEnter = 1 end
+
+            colorOnLeave = colorButton
+
+            colorOnMouseDown = colorButton + 0.05
+            if (colorOnMouseDown < 0) then colorOnMouseDown = 0 end
+
+            colorOnMouseUp = colorButton + 0.1
+            if (colorOnMouseUp > 1) then colorOnMouseUp = 1 end
+
+            return colorOnEnter, colorOnLeave, colorOnMouseDown, colorOnMouseUp
+        end
+
+        redColorOnEnter, redColorOnLeave, redColorOnMouseDown, redColorOnMouseUp = setupColor(red)
+        greenColorOnEnter, greenColorOnLeave, greenColorOnMouseDown, greenColorOnMouseUp = setupColor(green)
+        blueColorOnEnter, blueColorOnLeave, blueColorOnMouseDown, blueColorOnMouseUp = setupColor(blue)
+
+        self:SetScript("OnEnter", function ()
+            if (self:IsTexture()) then
+                self.Texture:SetTexture(redColorOnEnter, greenColorOnEnter, blueColorOnEnter, alpha)
+            else
+                self:SetBackdropColor(redColorOnEnter, greenColorOnEnter, blueColorOnEnter, alpha)
+            end
+        end)
+
+        self:SetScript("OnLeave", function ()
+            if (not self.IsPressed) then
+                if (self:IsTexture()) then
+                    self.Texture:SetTexture(redColorOnLeave, greenColorOnLeave, blueColorOnLeave, alpha)
+                else
+                    self:SetBackdropColor(redColorOnLeave, greenColorOnLeave, blueColorOnLeave, alpha)
+                end
+            end
+        end)
+
+        self:SetScript("OnMouseDown", function ()
+            self.IsPressed = true
+            if (self:IsTexture()) then
+                self.Texture:SetTexture(redColorOnMouseDown, greenColorOnMouseDown, blueColorOnMouseDown, alpha)
+            else
+                self:SetBackdropColor(redColorOnMouseDown, greenColorOnMouseDown, blueColorOnMouseDown, alpha)
+            end
+            if (functionOnMouseDown) then
+                functionOnMouseDown()
+                if (not self:IsShown()) then
+                    self.IsPressed = false
+                end
+            end
+        end)
+
+        self:SetScript("OnMouseUp", function ()
+            self.IsPressed = false
+            if (self:IsMouseOver()) then
+                self.Texture:SetTexture(redColorOnMouseUp, greenColorOnMouseUp, blueColorOnMouseUp, alpha)
+            else
+                self.Texture:SetTexture(redColorOnLeave, greenColorOnLeave, blueColorOnLeave, alpha)
             end
 
             if (functionOnMouseUp) then functionOnMouseUp() end
