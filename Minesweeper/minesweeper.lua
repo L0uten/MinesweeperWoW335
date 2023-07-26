@@ -1,8 +1,8 @@
 local AddOnName, Engine = ...
 local LoutenLib, MINES = unpack(Engine)
 
-LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.3")
-MINES:SetRevision("2023", "07", "21", "00", "01", "00")
+LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.4")
+MINES:SetRevision("2023", "07", "26", "00", "01", "00")
 
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {

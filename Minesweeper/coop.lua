@@ -6,18 +6,40 @@ MINES.IsHosting = false
 MINES.PartnerName = nil
 
 MINES.PartnerCursor = LoutenLib:CreateNewFrame(UIParent)
-MINES.PartnerCursor:InitNewFrame(25, 25,
+MINES.PartnerCursor:InitNewFrame(23, 23,
                             "BOTTOMLEFT", nil, "BOTTOMLEFT", 0, 0,
                             1,1,0,1,
                             false, false, nil)
 MINES.PartnerCursor:Hide()
 MINES.PartnerCursor:SetFrameStrata("TOOLTIP")
-MINES.PartnerCursor.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\bullet2.tga")
-function MINES.SetCursorTo(frame)
+MINES.PartnerCursor.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\cursor.blp")
+MINES.PartnerCursor.LastId = nil
+function MINES.SetCursorTo(frame, cellId)
+    cellId = tonumber(cellId)
     if (MINES.Field:IsShown() and not MINES.IsGameHidden) then
         MINES.PartnerCursor:ClearAllPoints()
-        MINES.PartnerCursor:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        MINES.PartnerCursor:SetPoint("CENTER", frame, "CENTER", 13, -13)
         MINES.PartnerCursor:Show()
+        MINES.PartnerCursor.LastId = MINES.PartnerCursor.LastId or cellId
+
+        if (MINES.Field.Cells[cellId].Opened) then
+            MINES.Field.Cells[cellId]:SetBackdropColor(.4,.4,.4,1)
+        else
+            MINES.Field.Cells[cellId]:SetBackdropColor(1,1,.2,1)
+        end
+        if (MINES.Field.Cells[cellId].Flag) then
+            MINES.Field.Cells[cellId]:SetBackdropColor(.3,.3,1,1)
+        end
+
+        if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Opened) then
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(.8,.8,.8,1)
+        else
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,1,0,1)
+        end
+        if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Flag) then
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,0,1,1)
+        end
+        MINES.PartnerCursor.LastId = cellId
     end
 end
 
@@ -156,7 +178,7 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
 
             -- Получение позиции курсора второго игрока
             if (arg1 == "mines_cursor" and arg4 == MINES.PartnerName) then
-                MINES.SetCursorTo(MINES.Field.Cells[tonumber(arg2)])
+                MINES.SetCursorTo(MINES.Field.Cells[tonumber(arg2)], arg2)
                 return
             end
             -- Получение открытой ячейки
