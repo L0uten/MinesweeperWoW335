@@ -1,8 +1,8 @@
 local AddOnName, Engine = ...
 local LoutenLib, MINES = unpack(Engine)
 
-LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.4")
-MINES:SetRevision("2023", "07", "26", "00", "01", "00")
+LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.4.1")
+MINES:SetRevision("2023", "07", "28", "00", "00", "01")
 
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {
@@ -233,7 +233,7 @@ function MINES.ClearingField()
     end
 end
 function MINES.SetFlag(cellId)
-    if (MINES.MinesLeft == 0) then return end
+    if (MINES.MinesLeft == 0 and not MINES.Field.Cells[cellId].Flag) then return end
     if (not MINES.Field.Cells[cellId].Opened) then
         if (MINES.Field.Cells[cellId].Flag) then
             MINES.Field.Cells[cellId].Flag = false
