@@ -1,8 +1,34 @@
 local AddOnName, Engine = ...
 local LoutenLib, MINES = unpack(Engine)
 
-LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.4.1")
-MINES:SetRevision("2023", "07", "28", "00", "00", "01")
+LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.5")
+MINES:SetRevision("2023", "08", "10", "01", "00", "00")
+MINES:LoadedFunction(function()
+    MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
+
+    if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
+        MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
+    end
+
+    MINES:PrintMsg("/mines - открыть поле с игрой")
+end)
+
+SlashCmdList.MINES = function(msg, editBox)
+    if (#msg == 0) then
+        MINES.Field:Show()
+    end
+end
+
+SLASH_MINES1 = "/mines"
+SLASH_MINES2 = "/minesweeper"
+
+
+MINES:LoadedFunction(function()
+    MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
+    if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
+        MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
+    end
+end)
 
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {
@@ -162,6 +188,9 @@ end
 function MINES.GetActualMaxCells()
     return ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsH))
 end
+function MINES.GetMaxCellsInRow()
+    return MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW
+end
 function MINES.RefreshField()
     MINES.DisableField()
     MINES.CellsLeft = MINES.GetCellsLeft()
@@ -227,6 +256,7 @@ function MINES.ClearingField()
         MINES.Field.Cells[i].Flag = false
         MINES.Field.Cells[i].Opened = false
         MINES.Field.Cells[i].MinesInRange = 0
+        MINES.Field.Cells[i].IsResetMine = false
         MINES.Field.Cells[i].Text:Hide()
         MINES.StartTime = 0
         MINES.ReturnToGreenCell(i)
@@ -327,20 +357,13 @@ function MINES.OpenCell(cellId)
     end
 end
 function MINES.MineCells()
-    local minesCoopList = ""
+    local minesCoopList = nil
     local i = 0
     while i < MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount do
         local r = random(1, MINES.GetActualMaxCells())
         if (not MINES.Field.Cells[r].Mined) then
             if (not MINES.Field.Cells[r].IsOverLimit) then
                 MINES.Field.Cells[r].Mined = true
-                if (MINES.COOPMode) then
-                    if (i == 0) then
-                        minesCoopList = tostring(r)
-                    else
-                        minesCoopList = minesCoopList.." "..tostring(r)
-                    end
-                end
             end
         else
             i = i - 1
@@ -348,9 +371,278 @@ function MINES.MineCells()
         i = i + 1
     end
 
+    local restart = false
+    local function resetMine(x)
+        MINES.Field.Cells[x].Mined = false
+        MINES.Field.Cells[x].IsResetMine = true
+        local r = random(1, MINES.GetActualMaxCells())
+        while (r == x) do
+            r = random(1, MINES.GetActualMaxCells())
+        end
+        if (not MINES.Field.Cells[r].Mined and not MINES.Field.Cells[r].IsResetMine) then
+            if (not MINES.Field.Cells[r].IsOverLimit) then
+                MINES.Field.Cells[r].Mined = true
+                MINES.Field.Cells[r].New = true
+                MINES.Field.Cells[x].Old = true
+            end
+        end
+    end
+    
+    local function remove5050Mines()
+        restart = false
+        for i = 1, MINES.GetActualMaxCells() do
+            -- Левая Т
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() == 3 and
+                i ~= 3 and
+                i + MINES.GetMaxCellsInRow() < MINES.GetActualMaxCells()) then
+                if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and
+                    MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined) then
+                        if (MINES.Field.Cells[i-1].Mined and not MINES.Field.Cells[i-2].Mined or 
+                            not MINES.Field.Cells[i-1].Mined and MINES.Field.Cells[i-2].Mined) then
+                            resetMine(i)
+                            restart = true
+                        end
+                end
+            end
+            -- Правая Т
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() == MINES.GetMaxCellsInRow() - 2 and
+                i ~= MINES.GetMaxCellsInRow() - 2 and
+                i + MINES.GetMaxCellsInRow() < MINES.GetActualMaxCells()) then
+                if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and
+                    MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined) then
+                        if (MINES.Field.Cells[i+1].Mined and not MINES.Field.Cells[i+2].Mined or
+                            not MINES.Field.Cells[i+1].Mined and MINES.Field.Cells[i+2].Mined) then
+                            resetMine(i)
+                            restart = true
+                        end
+                end
+            end
+            -- Верхняя Т
+            if (MINES.Field.Cells[i].Mined and
+                i > MINES.GetMaxCellsInRow() * 2+1 and i < MINES.GetMaxCellsInRow() * 3) then
+                if (MINES.Field.Cells[i-1].Mined and
+                    MINES.Field.Cells[i+1].Mined) then
+                        if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined or
+                            not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined) then
+                            resetMine(i)
+                            restart = true
+                        end
+                end
+            end
+            -- Нижняя Т
+            if (MINES.Field.Cells[i].Mined and
+                i > MINES.GetActualMaxCells() - (MINES.GetMaxCellsInRow() * 3)+1 and i < MINES.GetActualMaxCells() - (MINES.GetMaxCellsInRow() * 2)-1) then
+                if (MINES.Field.Cells[i-1].Mined and
+                    MINES.Field.Cells[i+1].Mined) then
+                        if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined or 
+                            not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                            resetMine(i)
+                            restart = true
+                        end
+                end
+            end
+
+            -- Левый верх Г
+            if (MINES.Field.Cells[i].Mined and
+                i == 3) then
+                if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1].Mined and
+                    not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1-1].Mined) then
+
+                    if (MINES.Field.Cells[i-1].Mined and not MINES.Field.Cells[i-1-1].Mined or
+                        not MINES.Field.Cells[i-1].Mined and MINES.Field.Cells[i-1-1].Mined) then
+                        resetMine(i+MINES.GetMaxCellsInRow())
+                        restart = true
+                    end
+                end
+            end
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetMaxCellsInRow() * 2 + 1) then
+                if (MINES.Field.Cells[i+1].Mined and
+                    not MINES.Field.Cells[i+1-MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i+1-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined) then
+                    
+                    if (not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined or
+                        MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined) then
+                        resetMine(i+1)
+                        restart = true
+                    end
+                end
+            end
+            -- Правый верх Г
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetMaxCellsInRow() - 2) then
+                if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and
+                    not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined) then
+                    
+                    if (MINES.Field.Cells[i+1].Mined and not MINES.Field.Cells[i+1+1].Mined or
+                        not MINES.Field.Cells[i+1].Mined and MINES.Field.Cells[i+1+1].Mined) then
+                        resetMine(i+MINES.GetMaxCellsInRow())
+                        restart = true
+                    end
+                end
+            end
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetMaxCellsInRow() * 3) then
+                if (MINES.Field.Cells[i-1].Mined and
+                    not MINES.Field.Cells[i-1-MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i-1-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined) then
+
+                    if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined or
+                        not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-MINES.GetMaxCellsInRow()].Mined) then
+                        resetMine(i-1)
+                        restart = true
+                    end
+                end
+            end
+            -- Нижний левый Г
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetActualMaxCells()-MINES.GetMaxCellsInRow()+3) then
+                if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-1].Mined and
+                    not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()-1-1].Mined) then
+                    
+                    if (MINES.Field.Cells[i-1].Mined and not MINES.Field.Cells[i-1-1].Mined or 
+                        not MINES.Field.Cells[i-1].Mined and MINES.Field.Cells[i-1-1].Mined) then
+                        resetMine(i-MINES.GetMaxCellsInRow())
+                        restart = true
+                    end
+                end
+            end
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetActualMaxCells()-MINES.GetMaxCellsInRow()*3+1) then
+                if (MINES.Field.Cells[i+1].Mined and
+                    not MINES.Field.Cells[i+1+MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i+1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                    
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined or
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                        resetMine(i+1)
+                        restart = true
+                    end
+                end
+            end
+            -- Нижный правый Г
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetActualMaxCells()-MINES.GetMaxCellsInRow()*2) then
+                if (MINES.Field.Cells[i-1].Mined and
+                not MINES.Field.Cells[i-1+MINES.GetMaxCellsInRow()].Mined and
+                not MINES.Field.Cells[i-1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined or
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                        resetMine(i-1)
+                        restart = true
+                    end
+                end
+            end
+            if (MINES.Field.Cells[i].Mined and
+                i == MINES.GetActualMaxCells()-2) then
+                if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1].Mined and
+                    not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1].Mined) then
+
+                    if (MINES.Field.Cells[i+1].Mined and not MINES.Field.Cells[i+1+1].Mined or 
+                        not MINES.Field.Cells[i+1].Mined and MINES.Field.Cells[i+1+1].Mined) then
+                        resetMine(i-MINES.GetMaxCellsInRow())
+                        restart = true
+                    end
+                end
+            end
+
+            -- Левая скоба
+            if (MINES.Field.Cells[i].Mined and
+                i%MINES.GetMaxCellsInRow() == 1 and
+                i < MINES.GetActualMaxCells()-MINES.GetMaxCellsInRow()*4+2) then
+                if (MINES.Field.Cells[i+1].Mined and
+                    not MINES.Field.Cells[i+1+MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i+1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined and
+                    MINES.Field.Cells[i+1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined and
+                    MINES.Field.Cells[i+1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()-1].Mined) then
+
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined or
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                        resetMine(i+1)
+                        restart = true
+                    end
+                end
+            end
+            -- Правая скоба
+            if (MINES.Field.Cells[i].Mined and
+                i%MINES.GetMaxCellsInRow() == 0 and
+                i < MINES.GetActualMaxCells()-MINES.GetMaxCellsInRow()*3) then
+                if (MINES.Field.Cells[i-1].Mined and
+                    not MINES.Field.Cells[i-1+MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i-1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined and
+                    MINES.Field.Cells[i-1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined and
+                    MINES.Field.Cells[i-1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+1].Mined) then
+
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined or
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                        resetMine(i-1)
+                        restart = true
+                    end
+                end
+            end
+            -- Верхняя скоба
+            if (MINES.Field.Cells[i].Mined and
+                i>=1 and i < MINES.GetMaxCellsInRow()-2) then
+                if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and
+                    not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                    MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1+1].Mined and
+                    MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1+1-MINES.GetMaxCellsInRow()].Mined) then
+
+                    if (MINES.Field.Cells[i+1].Mined and not MINES.Field.Cells[i+1+1].Mined or
+                        not MINES.Field.Cells[i+1].Mined and MINES.Field.Cells[i+1+1].Mined) then
+                        resetMine(i+MINES.GetMaxCellsInRow())
+                        restart = true
+                    end
+                end
+            end
+            -- Нижняя скоба
+            if (MINES.Field.Cells[i].Mined and
+                i>=MINES.GetActualMaxCells()-MINES.GetMaxCellsInRow()+1 and i < MINES.GetActualMaxCells()-2) then
+                if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()].Mined and
+                    not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1].Mined and
+                    not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1].Mined and
+                    MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1+1].Mined and
+                    MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1+1+MINES.GetMaxCellsInRow()].Mined) then
+
+                    if (MINES.Field.Cells[i+1].Mined and not MINES.Field.Cells[i+1+1].Mined or
+                        not MINES.Field.Cells[i+1].Mined and MINES.Field.Cells[i+1+1].Mined) then
+                        resetMine(i-MINES.GetMaxCellsInRow())
+                        restart = true
+                        -- GLOBALTEST = true
+                    end
+                end
+            end
+        end
+    end
+
+    remove5050Mines()
+    while (restart) do
+        remove5050Mines()
+    end
+
+    
+
     if (MINES.COOPMode) then
+        for i = 1, MINES.GetActualMaxCells() do
+            if (MINES.Field.Cells[i].Mined) then
+                if (not minesCoopList) then
+                    minesCoopList = tostring(i)
+                else
+                    minesCoopList = minesCoopList.." "..tostring(i)
+                end
+            end
+        end
         COOP_Send_CreatingMinesOnField(minesCoopList)
     end
+
 end
 function MINES.FindMinesInRange()
     local fieldW = MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth
@@ -468,6 +760,7 @@ function MINES.LoseGame()
         if (not MINES.IsGameHidden) then MINES.Field.StartGameButton:Show() end
     end
 end
+
 
 CreateNewField(MINES.CurrentDifficulty)
 MINES.Field:Hide()
@@ -864,128 +1157,42 @@ function MINES.RestartFieldInterface()
     RestorePoint(MINES.Field.Header.Text)
 end
 
-SlashCmdList.MINES = function(msg, editBox)
-    if (#msg == 0) then
-        MINES.Field:Show()
-    end
-end
-
-SLASH_MINES1 = "/mines"
-SLASH_MINES2 = "/minesweeper"
-
-
-MINES:LoadedFunction(function()
-    MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
-    if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
-        MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
-    end
-end)
-
-
--- local function anim()
---     anims = {}
---     function setpoint(f, x, y, toX, toY)
---         local point, relativeTo, relativePoint, xOfs, yOfs = f:GetPoint()
---         f:ClearAllPoints()
---         if (toX == "+" and toY == "+") then
---             f:SetPoint(point, relativeTo, relativePoint, xOfs + x, yOfs + y)
---         elseif (toX == "+" and toY == "-") then
---             f:SetPoint(point, relativeTo, relativePoint, xOfs + x, yOfs - y)
---         elseif (toX == "-" and toY == "-") then
---             f:SetPoint(point, relativeTo, relativePoint, xOfs - x, yOfs - y)
---         elseif (toX == "-" and toY == "+") then
---             f:SetPoint(point, relativeTo, relativePoint, xOfs - x, yOfs + y)
---         end
---     end
---     function randomFloat(lower, greater)
---         return lower + math.random()  * (greater - lower);
---     end
---     local animSpeed = 0
---     local startTime = GetTime()
---     for i = 0, MINES.GetActualMaxCells() / 2 do
---         anims[i] = {}
---         anims[i].i = 0.1
---         anims[i].fn = function() end
---         anims[i].st = startTime
---         anims[i].s = 1
---         anims[i].x = randomFloat(0,0.6)
---         anims[i].y = randomFloat(0,0.6)
---         anims[i].rf = random(0,1)
---         anims[i].r = random(0, MINES.GetActualMaxCells())
---         anims[i].f = CreateFrame("Frame")
---         anims[i].f:SetScript("OnUpdate", function()
---             anims[i].fn()
---             if (GetTime() >= anims[i].st + anims[i].i and anims[i].st ~= 0) then
---                 if (anims[i].rf == 0) then
---                     if (anims[i].s == 1) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") end
---                         anims[i].s = anims[i].s + 1
---                     elseif (anims[i].s == 2) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") end
---                         anims[i].s = anims[i].s + 1
---                     elseif (anims[i].s == 3) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") end
---                         anims[i].s = anims[i].s + 1
---                     elseif (anims[i].s == 4) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") end
---                         anims[i].s = 1
+-- GLOBALTEST = false
+-- local _1 = 0
+-- SlashCmdList.TESTTT = function(msg, editBox)
+--     if (#msg == 0) then
+--         GLOBALTEST = false
+--         _1 = 0
+--         local qwe = GetTime()
+--         local fff = CreateFrame("Frame")
+--         fff:SetScript("OnUpdate", function()
+--             if (MINES.EndGame) then
+--                 _1 = _1 + 1
+--                 MINES.StartGameBT()
+--                 if (GLOBALTEST) then
+--                     fff:SetScript("OnUpdate", nil)
+--                     MINES.LoseGame()
+--                     MINES:PrintMsg("Попыток: ".._1)
+--                     MINES:PrintMsg("Время: "..GetTime() - qwe)
+--                     for i = 1, MINES.GetActualMaxCells() do
+--                         if (MINES.Field.Cells[i].New) then
+--                             MINES.Field.Cells[i]:SetBackdropColor(.3,1,.9,1)
+--                         end
+--                         if (MINES.Field.Cells[i].Old) then
+--                             MINES.Field.Cells[i]:SetBackdropColor(1,.7,0,1)
+--                         end
+--                         MINES.Field.Cells[i].Old = false
+--                         MINES.Field.Cells[i].New = false
 --                     end
---                 else
---                     if (anims[i].s == 1) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") end
---                         anims[i].s = anims[i].s + 1
---                     elseif (anims[i].s == 2) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") end
---                         anims[i].s = anims[i].s + 1
---                     elseif (anims[i].s == 3) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") end
---                         anims[i].s = anims[i].s + 1
---                     elseif (anims[i].s == 4) then
---                         anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") end
---                         anims[i].s = 1
---                     end
+--                     return
 --                 end
---                 anims[i].st = GetTime()
---                 anims[i].i = anims[i].i - 0.001
---                 if (anims[i].i <= 0) then
---                     anims[i].s = 0
---                     anims[i].i = 1
---                     anims[i].x = anims[i].x * 13
---                     anims[i].y = anims[i].y * 13
---                     anims[i].a = 0.03
---                     if (anims[i].rf == 0) then
---                         if (anims[i].s == 1) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         elseif (anims[i].s == 2) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         elseif (anims[i].s == 3) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         elseif (anims[i].s == 4) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         end
---                     else
---                         if (anims[i].s == 1) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "+", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         elseif (anims[i].s == 2) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "+", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         elseif (anims[i].s == 3) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x*2, anims[i].y*2, "-", "-") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         elseif (anims[i].s == 4) then
---                             anims[i].fn = function() setpoint(MINES.Field.Cells[anims[i].r], anims[i].x, anims[i].y, "-", "+") MINES.Field.Cells[anims[i].r]:SetAlpha(anims[i].i) anims[i].i = anims[i].i - anims[i].a if (MINES.Field.Cells[anims[i].r]:GetAlpha() <= 0) then anims[i].f:SetScript("OnUpdate", nil) anims[i].fn = nil end end
---                         end
---                     end
---                     anims[i].st = 0
---                     -- anims[i].f:SetScript("OnUpdate", nil)
---                     -- anims[i].fn = nil
+--                 MINES.LoseGame()
+--                 for i = 1, MINES.GetActualMaxCells() do
+--                     MINES.Field.Cells[i].Old = false
+--                     MINES.Field.Cells[i].New = false
 --                 end
 --             end
 --         end)
---     end
--- end
-
--- SlashCmdList.TESTTT = function(msg, editBox)
---     if (#msg == 0) then
---         anim()
 --     end
 -- end
 

@@ -455,6 +455,175 @@ Engine[1].CreateNewFrame = function(s, parent)
         end
     end
 
+    function uiFrame:InitNewDropDownList2(buttW, buttH, listMultipW, listMultipH, redColor, greenColor, blueColor, alpha,
+                                         arrayWithEl, buttText, func, type, addOptional)
+
+        self.DropDownButton = Engine[1]:CreateNewFrame(self)
+        self.DropDownList = Engine[1]:CreateNewFrame(self)
+        self.DropDownList.Elements = {}
+        dropdownlists[#dropdownlists+1] = self
+        self.DropDownButton.Arrow = Engine[1]:CreateNewFrame(self.DropDownButton)
+        self.DropDownList:Hide()
+
+        self.DropDownButton:InitNewFrame(buttW, buttH,
+                                        "LEFT", self, "LEFT", 0, 0,
+                                        redColor, greenColor, blueColor, alpha,
+                                        true, false, nil)
+
+        self.DropDownButton.Arrow:InitNewFrame(self.DropDownButton:GetHeight()/1.5, self.DropDownButton:GetHeight()/1.5,
+                                                    "RIGHT", self.DropDownButton, "RIGHT", -(self.DropDownButton:GetHeight()*0.1), 0,
+                                                    0,0,0,0,
+                                                    false, false, nil)
+        self.DropDownButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..Engine[2].Info.FileName.."\\textures\\movedown.tga")
+
+        self.DropDownButton:InitNewButton2(redColor, greenColor, blueColor, alpha, 
+                                            nil,
+                                            function()
+                                                if (self.DropDownList:IsShown()) then
+                                                    ---------------------
+                                                    -- close animation -- 
+                                                    self.DropDownButton:EnableMouse(false)
+                                                    self.DropDownList.Texture:SetTexture(0,0,0,0)
+                                                    for i = 1, #arrayWithEl do
+                                                        self.DropDownList.Elements[i]:EnableMouse(false)
+                                                    end
+
+                                                    local openAnimF = CreateFrame("Frame")
+                                                    local animSpeed
+                                                    local alpha = 1
+                                                    local indexEl = #arrayWithEl
+                                                    openAnimF:SetScript("OnUpdate", function()
+                                                        self.DropDownList.Elements[indexEl]:SetAlpha(alpha)
+                                                        if (GetFramerate() < 30) then
+                                                            animSpeed = 0.25
+                                                        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+                                                            animSpeed =  0.20
+                                                        else
+                                                            animSpeed = 0.15
+                                                        end
+                                                        -- animation acceleration
+                                                        local animAccel = animSpeed / 100 * #arrayWithEl
+                                                        alpha = alpha - (animSpeed + animAccel)
+                                                        if (alpha < 0) then
+                                                            self.DropDownList.Elements[indexEl]:SetAlpha(0)
+                                                            alpha = 1
+                                                            indexEl = indexEl - 1
+                                                            if (indexEl < 1) then
+                                                                self.DropDownList:Hide()
+                                                                self.DropDownButton:EnableMouse(true)
+                                                                for i = 1, #arrayWithEl do
+                                                                    self.DropDownList.Elements[i]:EnableMouse(true)
+                                                                end
+                                                                openAnimF:SetScript("OnUpdate", nil)
+                                                            end
+                                                        end
+                                                    end)
+                                                    -- close animation --
+                                                    ---------------------
+
+                                                    self.DropDownButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..Engine[2].Info.FileName.."\\textures\\movedown.tga")
+                                                else
+                                                    self.DropDownList:Show()
+                                                    
+                                                    --------------------
+                                                    -- open animation -- 
+                                                    self.DropDownList.Texture:SetTexture(0,0,0,0)
+                                                    self.DropDownButton:EnableMouse(false)
+                                                    for i = 1, #arrayWithEl do
+                                                        self.DropDownList.Elements[i]:EnableMouse(false)
+                                                        self.DropDownList.Elements[i]:SetAlpha(0)
+                                                    end
+
+                                                    local openAnimF = CreateFrame("Frame")
+                                                    local animSpeed
+                                                    local alpha = 0
+                                                    local indexEl = 1
+                                                    openAnimF:SetScript("OnUpdate", function()
+                                                        self.DropDownList.Elements[indexEl]:SetAlpha(alpha)
+                                                        if (GetFramerate() < 30) then
+                                                            animSpeed = 0.25
+                                                        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+                                                            animSpeed =  0.20
+                                                        else
+                                                            animSpeed = 0.15
+                                                        end
+                                                        -- animation acceleration
+                                                        local animAccel = animSpeed / 100 * #arrayWithEl
+                                                        alpha = alpha + (animSpeed + animAccel)
+                                                        if (alpha >= 1) then
+                                                            alpha = 0
+                                                            indexEl = indexEl + 1
+                                                            if (indexEl > #arrayWithEl) then
+                                                                self.DropDownList.Texture:SetTexture(0,0,0,1)
+                                                                self.DropDownButton:EnableMouse(true)
+                                                                for i = 1, #arrayWithEl do
+                                                                    self.DropDownList.Elements[i]:EnableMouse(true)
+                                                                end
+                                                                openAnimF:SetScript("OnUpdate", nil)
+                                                            end
+                                                        end
+                                                    end)
+                                                    -- open animation --
+                                                    --------------------
+
+
+                                                    self.DropDownButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..Engine[2].Info.FileName.."\\textures\\moveup.tga")
+                                                    for i = 1, #dropdownlists do
+                                                        if (self ~= dropdownlists[i]) then
+                                                            dropdownlists[i].DropDownList:Hide()
+                                                            dropdownlists[i].DropDownButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..Engine[2].Info.FileName.."\\textures\\movedown.tga")
+                                                        end
+                                                    end
+                                                end
+                                            end)
+        self.DropDownButton:SetScript("OnEnter", function ()
+            self.DropDownButton.Texture:SetTexture(redColorOnLeave, greenColorOnLeave, blueColorOnLeave, alphaColorOnLeave)
+        end)
+        self.DropDownButton:SetTextToFrame("CENTER", self.DropDownButton, "CENTER", 0,0,
+                                            true, buttH / 2.1, buttText)
+
+
+
+
+
+        self.DropDownList:InitNewFrame(buttW * listMultipW, (buttH * #arrayWithEl) * listMultipH,
+                                        "BOTTOMLEFT", self.DropDownButton, "BOTTOMLEFT", 0, -(buttH * #arrayWithEl) * listMultipH,
+                                        0, 0, 0, 1,
+                                        true, false, nil)
+
+        self.DropDownList:SetFrameStrata("HIGH")
+        self.DropDownList:SetFrameLevel(self.DropDownList:GetFrameLevel()+10)
+        for i = 1, #arrayWithEl do
+            self.DropDownList.Elements[i] = Engine[1]:CreateNewFrame(self.DropDownList)
+
+            self.DropDownList.Elements[i]:InitNewFrame(self.DropDownList:GetWidth(), self.DropDownList:GetHeight() / #arrayWithEl,
+                                                        "TOP", self.DropDownList, "TOP", 0,0,
+                                                        redColorOnMouseDown, greenColorOnMouseDown, blueColorOnMouseDown, alphaColorOnMouseDown,
+                                                        true, false, nil)
+
+            if (i == 1) then
+                self.DropDownList.Elements[i]:SetPoint("TOP", self.DropDownList, "TOP")
+            else
+                self.DropDownList.Elements[i]:SetPoint("TOP", self.DropDownList.Elements[i - 1], "TOP", 0, -(self.DropDownList.Elements[i]:GetHeight()))
+            end
+
+            if (type == "Button") then
+                self.DropDownList.Elements[i]:SetTextToFrame("CENTER", self.DropDownList.Elements[i], "CENTER", 0, 0,
+                                                                true, buttH / 2.2, arrayWithEl[i])
+
+                self.DropDownList.Elements[i]:InitNewButton(redColorOnEnter, greenColorOnEnter, blueColorOnEnter, alphaColorOnEnter - .3,
+                                                            redColorOnMouseDown, greenColorOnMouseDown, blueColorOnMouseDown, alphaColorOnMouseDown,
+                                                            redColorOnEnter, greenColorOnEnter, blueColorOnEnter, alphaColorOnEnter - .5,
+                                                            redColorOnEnter, greenColorOnEnter, blueColorOnEnter, alphaColorOnEnter - .3,
+                                                            nil, func[i])
+            end
+
+            if (type == "CheckButton") then
+                self.DropDownList.Elements[i]:InitNewCheckButton(self:GetHeight()*1.1, addOptional[i], arrayWithEl[i], buttH / 2.2, func[i])
+            end
+        end
+    end
+
     function uiFrame:AddScrollToFrame()
         self:EnableMouseWheel(true)
     
