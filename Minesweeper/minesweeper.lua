@@ -23,13 +23,6 @@ SLASH_MINES1 = "/mines"
 SLASH_MINES2 = "/minesweeper"
 
 
-MINES:LoadedFunction(function()
-    MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
-    if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
-        MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
-    end
-end)
-
 -- СЛОЖНОСТЬ ИГРЫ
 MINES.GameDifficulty = {
     ["easy"] = {
