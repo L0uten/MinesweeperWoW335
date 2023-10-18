@@ -1,16 +1,18 @@
 local AddOnName, Engine = ...
 local LoutenLib, MINES = unpack(Engine)
 
-LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.5")
-MINES:SetRevision("2023", "08", "10", "01", "00", "00")
-MINES:LoadedFunction(function()
+local Init = CreateFrame("Frame")
+Init:RegisterEvent("PLAYER_LOGIN")
+Init:SetScript("OnEvent", function()
+    LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.6")
+    MINES:SetRevision("2023", "10", "08", "01", "00", "00")
     MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
-
-    if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
-        MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
-    end
-
-    MINES:PrintMsg("/mines - открыть поле с игрой")
+    MINES:LoadedFunction(function()
+        MINES:PrintMsg("/mines - открыть поле с игрой")
+    end)
+    MINES:CreateNewField(MINES.CurrentDifficulty)
+    MINES:CreateInterface()
+    MINES:InitCOOP()
 end)
 
 SlashCmdList.MINES = function(msg, editBox)
@@ -66,7 +68,7 @@ MINES.IsGameHidden = false
 
 
 
-local function CreateNewField(difficulty)
+function MINES:CreateNewField(difficulty)
     MINES.SetDifficulty(difficulty)
 
     -- Генерация поля
@@ -108,17 +110,17 @@ local function CreateNewField(difficulty)
                                             "TOPLEFT", MINES.Field, "TOPLEFT", x*cellsW, -y*cellsH,
                                             0,0,0,0,
                                             false, false, nil)
-            MINES.Field.Cells[c+1]:TextureToBackdrop(true, 3, 2, 0,0,0,1, 0,1,0,1)
+            MINES.Field.Cells[c+1]:TextureToBackdrop(true, 3, 2, 0,0,0,1, 0,.5,0,1)
             MINES.Field.Cells[c+1]:SetTextToFrame("CENTER", MINES.Field.Cells[c+1], "CENTER", 0, 0, true, 12, "")
             MINES.Field.Cells[c+1].Text:Hide()
             
             MINES.Field.Cells[c+1]:SetScript("OnEnter", function ()
-                MINES.Field.Cells[c+1]:SetBackdropColor(1,1,.2,1)
+                MINES.Field.Cells[c+1]:SetBackdropColor(.5,.5,.2,1)
                 if (MINES.COOPMode) then MINES.SendCursorPoint(c+1) end
             end)
 
             MINES.Field.Cells[c+1]:SetScript("OnLeave", function ()
-                MINES.Field.Cells[c+1]:SetBackdropColor(0,1,0,1)
+                MINES.Field.Cells[c+1]:SetBackdropColor(0,.5,0,1)
             end)
     
             MINES.Field.Cells[c+1]:SetScript("OnMouseUp", function (arg1, arg2)
@@ -136,6 +138,7 @@ local function CreateNewField(difficulty)
         end
     end
     MINES.RefreshField()
+    MINES.Field:Hide()
 end
 function MINES.StartTimer()
     MINES.StartTime = GetTime()
@@ -157,25 +160,25 @@ function MINES.GetCellsLeft()
     return ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsW)) - MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
 end
 function MINES.GreenToGrayCell(cellId)
-    MINES.Field.Cells[cellId]:SetBackdropColor(.8,.8,.8,1)
+    MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.5,1)
     MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(.4,.4,.4,1)
+        MINES.Field.Cells[cellId]:SetBackdropColor(.35,.35,.35,1)
         if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
     end)
 
     MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(.8,.8,.8,1)
+        MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.5,1)
     end)
 end
 function MINES.ReturnToGreenCell(cellId)
-    MINES.Field.Cells[cellId]:SetBackdropColor(0,1,0,1)
+    MINES.Field.Cells[cellId]:SetBackdropColor(0,.5,0,1)
     MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(1,1,.2,1)
+        MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.2,1)
         if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
     end)
 
     MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(0,1,0,1)
+        MINES.Field.Cells[cellId]:SetBackdropColor(0,.5,0,1)
     end)
 end
 function MINES.GetActualMaxCells()
@@ -264,29 +267,21 @@ function MINES.SetFlag(cellId)
                 MINES.MinesLeft = MINES.MinesLeft + 1 
                 MINES.Field.MinesLeft.Text:SetText(MINES.MinesLeft)
             end
-            MINES.Field.Cells[cellId]:SetBackdropColor(0,1,0,1)
-            MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
-                MINES.Field.Cells[cellId]:SetBackdropColor(1,1,.2,1)
-                if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
-            end)
-    
-            MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
-                MINES.Field.Cells[cellId]:SetBackdropColor(0,1,0,1)
-            end)
+            MINES.ReturnToGreenCell(cellId)
         else
             MINES.Field.Cells[cellId].Flag = true
             if (MINES.MinesLeft > 0) then
                 MINES.MinesLeft = MINES.MinesLeft - 1
                 MINES.Field.MinesLeft.Text:SetText(MINES.MinesLeft)
             end
-            MINES.Field.Cells[cellId]:SetBackdropColor(0,0,1,1)
+            MINES.Field.Cells[cellId]:SetBackdropColor(0,0,.7,1)
             MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
-                MINES.Field.Cells[cellId]:SetBackdropColor(.3,.3,1,1)
+                MINES.Field.Cells[cellId]:SetBackdropColor(.3,.3,.7,1)
                 if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
             end)
     
             MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
-                MINES.Field.Cells[cellId]:SetBackdropColor(0,0,1,1)
+                MINES.Field.Cells[cellId]:SetBackdropColor(0,0,.7,1)
             end)
         end
     end
@@ -375,8 +370,8 @@ function MINES.MineCells()
         if (not MINES.Field.Cells[r].Mined and not MINES.Field.Cells[r].IsResetMine) then
             if (not MINES.Field.Cells[r].IsOverLimit) then
                 MINES.Field.Cells[r].Mined = true
-                MINES.Field.Cells[r].New = true
-                MINES.Field.Cells[x].Old = true
+                -- MINES.Field.Cells[r].New = true
+                -- MINES.Field.Cells[x].Old = true
             end
         end
     end
@@ -609,7 +604,92 @@ function MINES.MineCells()
                         not MINES.Field.Cells[i+1].Mined and MINES.Field.Cells[i+1+1].Mined) then
                         resetMine(i-MINES.GetMaxCellsInRow())
                         restart = true
-                        -- GLOBALTEST = true
+                    end
+                end
+            end
+
+            -- Квадрат внутри
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() <= 17 and i % MINES.GetMaxCellsInRow() ~= 0 and i < (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3)-3) then
+                if (MINES.Field.Cells[i+1+1+1].Mined and MINES.Field.Cells[i+1+1+1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined and 
+                    MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                    if (not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                        MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                end
+            end
+            -- Квадрат внизу
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() <= 17 and i % MINES.GetMaxCellsInRow() ~= 0 and i < (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*2)-3 and
+                i > (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3)) then
+                if (MINES.Field.Cells[i+1+1+1].Mined) then
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                    if (not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                        MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                end
+            end
+            -- Квадрат сверху
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() <= 17 and i % MINES.GetMaxCellsInRow() ~= 0 and i > MINES.GetMaxCellsInRow()*2 and i <= MINES.GetMaxCellsInRow()*3 ) then
+                if (MINES.Field.Cells[i+1+1+1].Mined) then
+
+                    if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1].Mined and
+                        not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1-MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1-MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                    if (not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1].Mined and MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1].Mined and
+                        MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1-MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1-MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                end
+            end
+            -- Квадрат слева
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() == 3 and i < MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3) then
+                if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                    
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1-1].Mined and
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1+MINES.GetMaxCellsInRow()-1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                    if (not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1-1].Mined and
+                        MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()-1+MINES.GetMaxCellsInRow()-1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                end
+            end
+            -- Квадрат справа
+            if (MINES.Field.Cells[i].Mined and
+                i % MINES.GetMaxCellsInRow() == 18 and i < MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3) then
+                if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
+                    
+                    if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                        not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
+                    end
+                    if (not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
+                        MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
+                        resetMine(i)
+                        restart = true
                     end
                 end
             end
@@ -745,7 +825,7 @@ function MINES.LoseGame()
         for i = 1, MINES.GetActualMaxCells() do
             if (not MINES.Field.Cells[i].Flag) then
                 if (MINES.Field.Cells[i].Mined) then
-                    MINES.Field.Cells[i]:SetBackdropColor(1,0,0,1)
+                    MINES.Field.Cells[i]:SetBackdropColor(.55,0,0,1)
                 end
             end
         end
@@ -753,10 +833,6 @@ function MINES.LoseGame()
         if (not MINES.IsGameHidden) then MINES.Field.StartGameButton:Show() end
     end
 end
-
-
-CreateNewField(MINES.CurrentDifficulty)
-MINES.Field:Hide()
 
 
 
@@ -769,424 +845,419 @@ MINES.Field:Hide()
 
 
 -- Интерфейс игры
-MINES.Field.StartGameButton = LoutenLib:CreateNewFrame(MINES.Field)
-MINES.Field.StartGameButton:InitNewFrame(160, 40,
-                            "TOP", MINES.Field, "TOP", 0, 40,
-                            .3,1,.3,1,
-                            true, false, nil)
-MINES.Field.StartGameButton:InitNewButton(.5,1,.5,1,
-                                    .3,1,.3,1,
-                                    .2,.9,.2,1,
-                                    .5,1,.5,1,
-                                    function ()
-                                        MINES.StartGameBT()
-                                    end, nil)
-MINES.Field.StartGameButton:SetTextToFrame("CENTER", MINES.Field.StartGameButton, "CENTER", 0, 0, true, 16, "Начать игру")
-function MINES.StartGameBT()
-    MINES.Field.StartGameButton:EnableMouse(false)
-    if (MINES.COOPMode) then
-        if (not MINES.IsHosting) then
-            COOP_Send_StartGamePartner()
+function MINES:CreateInterface()
+    MINES.Field.StartGameButton = LoutenLib:CreateNewFrame(MINES.Field)
+    MINES.Field.StartGameButton:InitNewFrame2(160, 40,
+                                "TOP", MINES.Field, "TOP", 0, 40,
+                                52, 235, 107,1,
+                                true, false, nil)
+    MINES.Field.StartGameButton:InitNewButton2(52, 235, 107, 1,
+                                        function ()
+                                            MINES.StartGameBT()
+                                        end)
+    MINES.Field.StartGameButton:SetTextToFrame("CENTER", MINES.Field.StartGameButton, "CENTER", 0, 0, true, 16, "Начать игру")
+    function MINES.StartGameBT()
+        MINES.Field.StartGameButton:EnableMouse(false)
+        if (MINES.COOPMode) then
+            if (not MINES.IsHosting) then
+                COOP_Send_StartGamePartner()
+                return
+            end
+            MINES.Field.StartGameButton:Hide()
+            MINES.DisableField()
+            COOP_Send_ChangeDifficulty(MINES.NextDifficulty)
+            COOP_Send_CreateNewGame()
             return
         end
-        MINES.Field.StartGameButton:Hide()
-        MINES.DisableField()
-        COOP_Send_ChangeDifficulty(MINES.NextDifficulty)
-        COOP_Send_CreateNewGame()
-        return
+
+        MINES.PreparingGame()
     end
 
-    MINES.PreparingGame()
-end
-
-MINES.Field.Header:InitNewFrame(MINES.Field:GetWidth(), fieldHeaderH,
-                            "TOP", MINES.Field, "TOP", 0, 0,
-                            .05,.05,.05,1,
-                            false, false, nil)
-MINES.Field.Header:SetTextToFrame("CENTER", MINES.Field.Header, "CENTER", 0,0, true, 13, MINES.Info.Name)
-MINES.Field.Header.CloseButton = LoutenLib:CreateNewFrame(MINES.Field.Header)
-MINES.Field.Header.CloseButton:InitNewFrame(MINES.Field.Header:GetHeight(), MINES.Field.Header:GetHeight(),
-                                        "RIGHT", MINES.Field.Header, "RIGHT", 0, 0,
-                                        0,0,0,1,
-                                        true, false, nil)
-MINES.Field.Header.CloseButton:SetTextToFrame("CENTER", MINES.Field.Header.CloseButton, "CENTER", 0,2, true, 20, "x")
-MINES.Field.Header.CloseButton:InitNewButton(.4,0,0,1,
-                                        0,0,0,1,
-                                        .2,0,0,1,
-                                        .4,0,0,1,
-                                        nil, function()
-                                            MINES.Field.Header.HideButton.Texture:SetTexture(0,0,0,1)
-                                            MINES.Field:Hide()
-                                            MINES.PartnerCursor:Hide()
-                                        end)
-
-
-MINES.Field.Header.HideButton = LoutenLib:CreateNewFrame(MINES.Field.Header)
-MINES.Field.Header.HideButton:InitNewFrame(MINES.Field.Header:GetHeight(), MINES.Field.Header:GetHeight(),
-                                        "LEFT", MINES.Field.Header.CloseButton, "LEFT", -MINES.Field.Header:GetHeight(), 0,
-                                        0,0,0,1,
-                                        true, false, nil)
-MINES.Field.Header.HideButton:SetTextToFrame("CENTER", MINES.Field.Header.HideButton, "CENTER", 0,0, true, 30, "-")
-MINES.Field.Header.HideButton:InitNewButton(.4,.4,.2,1,
-                                        0,0,0,1,
-                                        .2,.2,.1,1,
-                                        .4,.4,.2,1,
-                                        nil, function()
-                                            local function HideToHeader()
-                                                MINES.Field.Header.HideButton:EnableMouse(false)
-                                                MINES.PartnerCursor:Hide()
-                                                MINES.Field.StartGameButton:Hide()
-                                                MINES.Field.SettingsButton:Hide()
-                                                MINES.Field.MinesLeft:Hide()
-                                                if (MINES.Field.Settings:IsShown()) then
-                                                    if (not MINES.Field.SettingsButton.IsActive) then
-                                                        MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\movedown.tga")
-                                                        MINES.CloseSettings()
-                                                    end
-                                                end
-                                                for i = 1, MINES.GetActualMaxCells() do
-                                                    MINES.Field.Cells[i]:Hide()
-                                                end
-                                                local animSpeed = 0
-                                                local animF = CreateFrame("Frame")
-                                                animF:SetScript("OnUpdate", function()
-                                                    if (GetFramerate() < 20) then
-                                                        animSpeed = 100
-                                                    elseif (GetFramerate() < 30) then
-                                                        animSpeed = 80
-                                                    elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
-                                                        animSpeed = 65
-                                                    else
-                                                        animSpeed = 45
-                                                    end
-                                                    MINES.Field:SetHeight(MINES.Field:GetHeight()-animSpeed)
-                                                    if (MINES.Field:GetHeight() <= fieldHeaderH) then
-                                                        animF:SetScript("OnUpdate", nil)
-                                                        MINES.Field:SetHeight(fieldHeaderH)
-                                                        MINES.Field.Header.HideButton:EnableMouse(true)
-                                                    end
-                                                end)
-                                            end
-
-                                            local function OpenFromHeader()
-                                                MINES.Field.Header.HideButton:EnableMouse(false)
-                                                if (MINES.COOPMode) then
-                                                    MINES.PartnerCursor:Show()
-                                                end
-                                                if (MINES.EndGame) then
-                                                    MINES.Field.StartGameButton:Show()
-                                                end
-                                                MINES.Field.SettingsButton:Show()
-                                                MINES.Field.MinesLeft:Show()
-                                                local animSpeed = 0
-                                                local animF = CreateFrame("Frame")
-                                                animF:SetScript("OnUpdate", function()
-                                                    if (GetFramerate() < 20) then
-                                                        animSpeed = 100
-                                                    elseif (GetFramerate() < 30) then
-                                                        animSpeed = 80
-                                                    elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
-                                                        animSpeed = 65
-                                                    else
-                                                        animSpeed = 45
-                                                    end
-                                                    MINES.Field:SetHeight(MINES.Field:GetHeight()+animSpeed)
-                                                    if (MINES.Field:GetHeight() >= MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight + fieldHeaderH) then
-                                                        animF:SetScript("OnUpdate", nil)
-                                                        MINES.Field:SetHeight(MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight + fieldHeaderH)
-                                                        for i = 1, MINES.GetActualMaxCells() do
-                                                            MINES.Field.Cells[i]:Show()
-                                                        end
-                                                        MINES.Field.Header.HideButton:EnableMouse(true)
-                                                    end
-                                                end)
-                                            end
-
-                                            if (MINES.IsGameHidden) then
-                                                OpenFromHeader()
-                                            else
-                                                HideToHeader()
-                                            end
-                                            MINES.IsGameHidden = not MINES.IsGameHidden
-                                        end)
-MINES.Field.Header.PartnerInfo = LoutenLib:CreateNewFrame(MINES.Field.Header)
-MINES.Field.Header.PartnerInfo:InitNewFrame(200, fieldHeaderH,
-                                        "LEFT", MINES.Field.Header, "LEFT", 10, 0,
-                                        0,0,0,0, false, false, nil)
-MINES.Field.Header.PartnerInfo:SetTextToFrame("LEFT", MINES.Field.Header.PartnerInfo, "LEFT", 0,0, true, 11, "COOP:")
-MINES.Field.Header.PartnerInfo:Hide()
-MINES.Field.Header.PartnerInfo.Text:SetTextColor(.5,1,.5,1)
-MINES.Field.SettingsButton = LoutenLib:CreateNewFrame(MINES.Field)
-MINES.Field.SettingsButton:InitNewFrame(130, 25,
-                                    "TOPLEFT", MINES.Field, "TOPLEFT", 0, 25,
-                                    0,0,0,1,
-                                    true, false, nil)
-MINES.Field.SettingsButton:SetTextToFrame("CENTER", MINES.Field.SettingsButton, "CENTER", 0,0, true, MINES.Field.SettingsButton:GetHeight() / 2.1, "Настройки")
-MINES.Field.SettingsButton.Arrow = LoutenLib:CreateNewFrame(MINES.Field.SettingsButton)
-MINES.Field.SettingsButton.Arrow:InitNewFrame(MINES.Field.SettingsButton:GetHeight()/1.5, MINES.Field.SettingsButton:GetHeight()/1.5,
-                                                    "RIGHT", MINES.Field.SettingsButton, "RIGHT", -(MINES.Field.SettingsButton:GetHeight()*0.1), 0,
-                                                    0,0,0,0,
-                                                    false, false, nil)
-MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\movedown.tga")
-MINES.Field.SettingsButton:InitNewButton(.15,.15,.15,1,
-                                    0,0,0,1,
-                                    .1,.1,.1,1,
-                                    .15,.15,.15,1,
-                                    function()
-                                        if (MINES.Field.Settings:IsShown()) then
-                                            if (not MINES.Field.SettingsButton.IsActive) then
-                                                MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\movedown.tga")
-                                                MINES.CloseSettings()
-                                            end
-                                        else
-                                            if (not MINES.Field.SettingsButton.IsActive) then
-                                                MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\moveup.tga")
-                                                MINES.OpenSettings()
-                                            end
-                                        end
-                                    end, nil)
-MINES.Field.SettingsButton.IsActive = false
-MINES.Field.Settings = LoutenLib:CreateNewFrame(MINES.Field.Header)
-MINES.Field.Settings:InitNewFrame(MINES.Field:GetWidth(), MINES.Field:GetHeight() - fieldHeaderH,
-                                "TOP", MINES.Field.Header, "TOP", 0, -fieldHeaderH,
-                                0,0,0,.8,
-                                true, false, nil)
-MINES.Field.Settings:Hide()
-function MINES.CloseSettings()
-    MINES.Field.SettingsButton.IsActive = true
-    local children  = {MINES.Field.Settings:GetChildren()}
-    for i, child in ipairs(children) do
-        child:Hide()
-    end
-    local animSpeed = 0
-    local anim = CreateFrame("Frame")
-    anim:SetScript("OnUpdate", function()
-        if (GetFramerate() < 20) then
-            animSpeed = 100
-        elseif (GetFramerate() < 30) then
-            animSpeed = 70
-        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
-            animSpeed = 35
-        else
-            animSpeed = 20
-        end
-        MINES.Field.Settings:SetHeight(MINES.Field.Settings:GetHeight() - animSpeed)
-        if (MINES.Field.Settings:GetHeight() <= 0) then
-            anim:SetScript("OnUpdate", nil)
-            MINES.Field.Settings:SetHeight(0)
-            MINES.Field.Settings:Hide()
-            MINES.Field.SettingsButton.IsActive = false
-        end
-    end)
-end
-function MINES.OpenSettings()
-    MINES.Field.SettingsButton.IsActive = true
-    local animSpeed = 0
-    if (GetFramerate() < 20) then
-        animSpeed = 100
-    elseif (GetFramerate() < 30) then
-        animSpeed = 70
-    elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
-        animSpeed = 35
-    else
-        animSpeed = 20
-    end
-    MINES.Field.Settings:SetHeight(0)
-    MINES.Field.Settings:Show()
-    local anim = CreateFrame("Frame")
-    anim:SetScript("OnUpdate", function()
-        if (GetFramerate() < 20) then
-            animSpeed = 100
-        elseif (GetFramerate() < 30) then
-            animSpeed = 70
-        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
-            animSpeed = 35
-        else
-            animSpeed = 20
-        end
-        MINES.Field.Settings:SetHeight(MINES.Field.Settings:GetHeight() + animSpeed)
-        if (MINES.Field.Settings:GetHeight() >= MINES.Field:GetHeight() - fieldHeaderH) then
-            anim:SetScript("OnUpdate", nil)
-            MINES.Field.Settings:SetHeight(MINES.Field:GetHeight() - fieldHeaderH)
-            local children  = {MINES.Field.Settings:GetChildren()}
-            for i, child in ipairs(children) do
-                child:Show()
-            end
-            MINES.Field.SettingsButton.IsActive = false
-        end
-    end)
-end
-MINES.Field.Settings.Box = LoutenLib:CreateNewFrame(MINES.Field.Settings)
-MINES.Field.Settings.Box:InitNewFrame(MINES.GameDifficulty["easy"].fieldWidth * 0.75, MINES.Field.Settings:GetHeight() * 0.85,
-                                    "CENTER", MINES.Field.Settings, "CENTER", 0,0,
-                                    0,0,0,0, false, false, nil)
-MINES.Field.Settings.Box:Hide()
-MINES.Field.Settings.ChangeDifficulty = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
-MINES.Field.Settings.ChangeDifficulty:InitNewFrame(180, 25,
-                                    "TOP", MINES.Field.Settings.Box, "TOP", 0, 0,
-                                    .2,.2,.2,.735,
-                                    true, false, nil)
-MINES.Field.Settings.ChangeDifficulty:InitNewDropDownList(MINES.Field.Settings.ChangeDifficulty:GetWidth(), MINES.Field.Settings.ChangeDifficulty:GetHeight(),
-                                            1,1,
-                                            .9,.9,.9,.735,
-                                            .2,.2,.2,.735,
-                                            .3,.3,.3,.735,
-                                            .9,.9,.9,.735,
-                                            {"Easy", "Medium", "Hard"},
-                                            "Сложность: "..MINES.CurrentDifficulty,
-                                            {function()
-                                                if (MINES.COOPMode and not MINES.IsHosting) then return end
-                                                MINES.ChangeDifficulty("easy")
-                                                MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Easy")
-                                            end,
-                                            function()
-                                                if (MINES.COOPMode and not MINES.IsHosting) then return end
-                                                MINES.ChangeDifficulty("medium")
-                                                MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Medium")
-                                            end,
-                                            function()
-                                                if (MINES.COOPMode and not MINES.IsHosting) then return end
-                                                MINES.ChangeDifficulty("hard")
-                                                MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Hard")
-                                            end}, "Button", nil)
-
-MINES.Field.Settings.InvitePlayerBox = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
-MINES.Field.Settings.InvitePlayerBox:InitNewFrame(170, 42,
-                                            "BOTTOM", MINES.Field.Settings.ChangeDifficulty, "BOTTOM", 0, -120,
-                                            0,0,0,0, false, false, nil)
-MINES.Field.Settings.InvitePlayerBox.Text = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
-MINES.Field.Settings.InvitePlayerBox.Text:SetTextToFrame("TOPLEFT", MINES.Field.Settings.InvitePlayerBox, "TOPLEFT", 0,0, true, 12, "Пригласить игрока:")
-MINES.Field.Settings.InvitePlayerBox.Input = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
-MINES.Field.Settings.InvitePlayerBox.Input:InitNewFrame(140, 18,
-                                            "BOTTOMLEFT", MINES.Field.Settings.InvitePlayerBox, "BOTTOMLEFT", 0, 0,
-                                            .8,.8,.8,1,
+    MINES.Field.Header:InitNewFrame(MINES.Field:GetWidth(), fieldHeaderH,
+                                "TOP", MINES.Field, "TOP", 0, 0,
+                                .05,.05,.05,1,
+                                false, false, nil)
+    MINES.Field.Header:SetTextToFrame("CENTER", MINES.Field.Header, "CENTER", 0,0, true, 13, MINES.Info.Name)
+    MINES.Field.Header.CloseButton = LoutenLib:CreateNewFrame(MINES.Field.Header)
+    MINES.Field.Header.CloseButton:InitNewFrame(MINES.Field.Header:GetHeight(), MINES.Field.Header:GetHeight(),
+                                            "RIGHT", MINES.Field.Header, "RIGHT", 0, 0,
+                                            0,0,0,1,
                                             true, false, nil)
-MINES.Field.Settings.InvitePlayerBox.Input:InitNewInput(13, 20, 0,0,.1,1,
-                                            nil, nil)
-MINES.Field.Settings.InvitePlayerBox.SendButton = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
-MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewFrame(25, 18,
-                                                        "BOTTOMRIGHT", MINES.Field.Settings.InvitePlayerBox, "BOTTOMRIGHT", 0,0,
-                                                        1,.3,.1,1, true, false, nil)
-MINES.Field.Settings.InvitePlayerBox.SendButton:SetTextToFrame("CENTER", MINES.Field.Settings.InvitePlayerBox.SendButton, "CENTER", 0,0, true, 12, "Ок")
-MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewButton(1,.4,.2,1,
-                                                        1,.3,.1,1,
-                                                        1,.2,.05,1,
-                                                        1,.4,.2,1, nil,
-                                                        function()
-                                                            if (MINES.COOPMode) then return end
-                                                            if (MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText() ~= UnitName("player")) then
-                                                                COOP_Send_InvitePartner(MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText())
-                                                                return
-                                                            end
-                                                        end)
-
-MINES.Field.MinesLeft = LoutenLib:CreateNewFrame(MINES.Field)
-MINES.Field.MinesLeft:InitNewFrame(50, 30,
-                                "TOP", MINES.Field, "TOP", 150, 30,
-                                0,0,0,.85, false, false, nil)
-MINES.Field.MinesLeft:SetTextToFrame("CENTER", MINES.Field.MinesLeft, "CENTER", 0,0, true, 15, tostring(MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount))
-
-MINES.Field.Settings.LeaveCOOP = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
-MINES.Field.Settings.LeaveCOOP:InitNewFrame(120, 23,
-                                        "BOTTOM", MINES.Field.Settings.InvitePlayerBox, "BOTTOM", 0, -40,
-                                        .7,0,0,1, true, false, nil)
-MINES.Field.Settings.LeaveCOOP:SetTextToFrame("CENTER", MINES.Field.Settings.LeaveCOOP, "CENTER", 0,0, true, 11, "Покинуть КООП")
-MINES.Field.Settings.LeaveCOOP:InitNewButton(1,.1,.1,1,
-                                            .7,0,0,1,
-                                            .6,0,0,1,
-                                            1,.1,.1,1,
-                                            nil, 
-                                            function()
-                                                COOP_Send_SendLeaveCOOP()
-                                                MINES.DisconnectCOOP(1)
+    MINES.Field.Header.CloseButton:SetTextToFrame("CENTER", MINES.Field.Header.CloseButton, "CENTER", 0,2, true, 20, "x")
+    MINES.Field.Header.CloseButton:InitNewButton(.4,0,0,1,
+                                            0,0,0,1,
+                                            .2,0,0,1,
+                                            .4,0,0,1,
+                                            nil, function()
+                                                MINES.Field.Header.HideButton.Texture:SetTexture(0,0,0,1)
+                                                MINES.Field:Hide()
+                                                MINES.PartnerCursor:Hide()
                                             end)
-MINES.Field.Settings.LeaveCOOP:Hide()
-
-MINES.Field.Settings.LeaveMeAlone = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
-MINES.Field.Settings.LeaveMeAlone:InitNewFrame(100, 25,
-                                                "BOTTOM", MINES.Field.Settings.LeaveCOOP, "BOTTOM", -40, -40,
-                                                0,0,0,0, true, false, nil)
-MINES.Field.Settings.LeaveMeAlone:InitNewCheckButton(30, false, "Отключить приглашения\nот других игроков", true, 12,
-                                                        function()
-                                                            MINES_DB.Profiles[UnitName("player")].LeaveMeAlone = not MINES_DB.Profiles[UnitName("player")].LeaveMeAlone
-                                                        end)
 
 
-MINES.Field.ResumeGame = LoutenLib:CreateNewFrame(MINES.Field)
-MINES.Field.ResumeGame:Hide()
-MINES.Field.ResumeGame:InitNewFrame(MINES.Field.Settings.Box:GetWidth(), 60,
-                                    "CENTER", MINES.Field, "CENTER", 0,0,
-                                    0,0,0,.735, true, false, nil)
-MINES.Field.ResumeGame.ResumeBT = LoutenLib:CreateNewFrame(MINES.Field.ResumeGame)
-MINES.Field.ResumeGame.ResumeBT:InitNewFrame2(MINES.Field.ResumeGame:GetWidth()/2 * .9, MINES.Field.ResumeGame:GetHeight() * .7,
-                                                "LEFT", MINES.Field.ResumeGame, "LEFT", 10,0,
-                                                250, 128, 52,1, true, false, nil)
-MINES.Field.ResumeGame.ResumeBT:InitNewButton2(250, 128, 52,1,
-                                                nil, function()
-                                                    COOP_Send_ChangeDifficulty(MINES.CurrentDifficulty)
-                                                    COOP_Send_CreateNewGame()
-                                                end)
-MINES.Field.ResumeGame.ResumeBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.ResumeBT, "CENTER", 0,0, true, 12, "Продолжить игру")
+    MINES.Field.Header.HideButton = LoutenLib:CreateNewFrame(MINES.Field.Header)
+    MINES.Field.Header.HideButton:InitNewFrame(MINES.Field.Header:GetHeight(), MINES.Field.Header:GetHeight(),
+                                            "LEFT", MINES.Field.Header.CloseButton, "LEFT", -MINES.Field.Header:GetHeight(), 0,
+                                            0,0,0,1,
+                                            true, false, nil)
+    MINES.Field.Header.HideButton:SetTextToFrame("CENTER", MINES.Field.Header.HideButton, "CENTER", 0,0, true, 30, "-")
+    MINES.Field.Header.HideButton:InitNewButton(.4,.4,.2,1,
+                                            0,0,0,1,
+                                            .2,.2,.1,1,
+                                            .4,.4,.2,1,
+                                            nil, function()
+                                                local function HideToHeader()
+                                                    MINES.Field.Header.HideButton:EnableMouse(false)
+                                                    MINES.PartnerCursor:Hide()
+                                                    MINES.Field.StartGameButton:Hide()
+                                                    MINES.Field.SettingsButton:Hide()
+                                                    MINES.Field.MinesLeft:Hide()
+                                                    if (MINES.Field.Settings:IsShown()) then
+                                                        if (not MINES.Field.SettingsButton.IsActive) then
+                                                            MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\movedown.tga")
+                                                            MINES.CloseSettings()
+                                                        end
+                                                    end
+                                                    for i = 1, MINES.GetActualMaxCells() do
+                                                        MINES.Field.Cells[i]:Hide()
+                                                    end
+                                                    local animSpeed = 0
+                                                    MINES.Field.Header.HideButton:SetScript("OnUpdate", function()
+                                                        if (GetFramerate() < 20) then
+                                                            animSpeed = 100
+                                                        elseif (GetFramerate() < 30) then
+                                                            animSpeed = 80
+                                                        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+                                                            animSpeed = 65
+                                                        else
+                                                            animSpeed = 45
+                                                        end
+                                                        MINES.Field:SetHeight(MINES.Field:GetHeight()-animSpeed)
+                                                        if (MINES.Field:GetHeight() <= fieldHeaderH) then
+                                                            MINES.Field.Header.HideButton:SetScript("OnUpdate", nil)
+                                                            MINES.Field:SetHeight(fieldHeaderH)
+                                                            MINES.Field.Header.HideButton:EnableMouse(true)
+                                                        end
+                                                    end)
+                                                end
 
-MINES.Field.ResumeGame.NewGameBT = LoutenLib:CreateNewFrame(MINES.Field.ResumeGame)
-MINES.Field.ResumeGame.NewGameBT:InitNewFrame2(MINES.Field.ResumeGame:GetWidth()/2 * .9, MINES.Field.ResumeGame:GetHeight() * .7,
-                                                "RIGHT", MINES.Field.ResumeGame, "RIGHT", -10,0,
-                                                125, 255, 92, 1, true, false, nil)
-MINES.Field.ResumeGame.NewGameBT:InitNewButton2(125, 255, 92, 1,
-                                                nil, function()
-                                                    MINES.Field.ResumeGame:Hide()
-                                                    MINES.StartGameBT()
-                                                end)
-MINES.Field.ResumeGame.NewGameBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.NewGameBT, "CENTER", 0,0, true, 12, "Начать новую игру")
-function MINES.RestartFieldInterface()
-    local function RestorePoint(f)
-        local point, relativeTo, relativePoint, xOfs, yOfs = f:GetPoint()
-        f:ClearAllPoints()
-        f:SetPoint(point, relativeTo, relativePoint, xOfs, yOfs)
+                                                local function OpenFromHeader()
+                                                    MINES.Field.Header.HideButton:EnableMouse(false)
+                                                    if (MINES.COOPMode) then
+                                                        MINES.PartnerCursor:Show()
+                                                    end
+                                                    if (MINES.EndGame) then
+                                                        MINES.Field.StartGameButton:Show()
+                                                    end
+                                                    MINES.Field.SettingsButton:Show()
+                                                    MINES.Field.MinesLeft:Show()
+                                                    local animSpeed = 0
+                                                    MINES.Field.Header.HideButton:SetScript("OnUpdate", function()
+                                                        if (GetFramerate() < 20) then
+                                                            animSpeed = 100
+                                                        elseif (GetFramerate() < 30) then
+                                                            animSpeed = 80
+                                                        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+                                                            animSpeed = 65
+                                                        else
+                                                            animSpeed = 45
+                                                        end
+                                                        MINES.Field:SetHeight(MINES.Field:GetHeight()+animSpeed)
+                                                        if (MINES.Field:GetHeight() >= MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight + fieldHeaderH) then
+                                                            MINES.Field.Header.HideButton:SetScript("OnUpdate", nil)
+                                                            MINES.Field:SetHeight(MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight + fieldHeaderH)
+                                                            for i = 1, MINES.GetActualMaxCells() do
+                                                                MINES.Field.Cells[i]:Show()
+                                                            end
+                                                            MINES.Field.Header.HideButton:EnableMouse(true)
+                                                        end
+                                                    end)
+                                                end
+
+                                                if (MINES.IsGameHidden) then
+                                                    OpenFromHeader()
+                                                else
+                                                    HideToHeader()
+                                                end
+                                                MINES.IsGameHidden = not MINES.IsGameHidden
+                                            end)
+    MINES.Field.Header.PartnerInfo = LoutenLib:CreateNewFrame(MINES.Field.Header)
+    MINES.Field.Header.PartnerInfo:InitNewFrame(200, fieldHeaderH,
+                                            "LEFT", MINES.Field.Header, "LEFT", 10, 0,
+                                            0,0,0,0, false, false, nil)
+    MINES.Field.Header.PartnerInfo:SetTextToFrame("LEFT", MINES.Field.Header.PartnerInfo, "LEFT", 0,0, true, 11, "COOP:")
+    MINES.Field.Header.PartnerInfo:Hide()
+    MINES.Field.Header.PartnerInfo.Text:SetTextColor(.5,1,.5,1)
+    MINES.Field.SettingsButton = LoutenLib:CreateNewFrame(MINES.Field)
+    MINES.Field.SettingsButton:InitNewFrame(130, 25,
+                                        "TOPLEFT", MINES.Field, "TOPLEFT", 0, 25,
+                                        0,0,0,1,
+                                        true, false, nil)
+    MINES.Field.SettingsButton:SetTextToFrame("CENTER", MINES.Field.SettingsButton, "CENTER", 0,0, true, MINES.Field.SettingsButton:GetHeight() / 2.1, "Настройки")
+    MINES.Field.SettingsButton.Arrow = LoutenLib:CreateNewFrame(MINES.Field.SettingsButton)
+    MINES.Field.SettingsButton.Arrow:InitNewFrame(MINES.Field.SettingsButton:GetHeight()/1.5, MINES.Field.SettingsButton:GetHeight()/1.5,
+                                                        "RIGHT", MINES.Field.SettingsButton, "RIGHT", -(MINES.Field.SettingsButton:GetHeight()*0.1), 0,
+                                                        0,0,0,0,
+                                                        false, false, nil)
+    MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\movedown.tga")
+    MINES.Field.SettingsButton:InitNewButton(.15,.15,.15,1,
+                                        0,0,0,1,
+                                        .1,.1,.1,1,
+                                        .15,.15,.15,1,
+                                        function()
+                                            if (MINES.Field.Settings:IsShown()) then
+                                                if (not MINES.Field.SettingsButton.IsActive) then
+                                                    MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\movedown.tga")
+                                                    MINES.CloseSettings()
+                                                end
+                                            else
+                                                if (not MINES.Field.SettingsButton.IsActive) then
+                                                    MINES.Field.SettingsButton.Arrow.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\moveup.tga")
+                                                    MINES.OpenSettings()
+                                                end
+                                            end
+                                        end, nil)
+    MINES.Field.SettingsButton.IsActive = false
+    MINES.Field.Settings = LoutenLib:CreateNewFrame(MINES.Field.Header)
+    MINES.Field.Settings:InitNewFrame(MINES.Field:GetWidth(), MINES.Field:GetHeight() - fieldHeaderH,
+                                    "TOP", MINES.Field.Header, "TOP", 0, -fieldHeaderH,
+                                    0,0,0,.8,
+                                    true, false, nil)
+    MINES.Field.Settings:Hide()
+    function MINES.CloseSettings()
+        MINES.Field.SettingsButton.IsActive = true
+        local children  = {MINES.Field.Settings:GetChildren()}
+        for i, child in ipairs(children) do
+            child:Hide()
+        end
+        local animSpeed = 0
+        MINES.Field.Settings:SetScript("OnUpdate", function()
+            if (GetFramerate() < 20) then
+                animSpeed = 100
+            elseif (GetFramerate() < 30) then
+                animSpeed = 70
+            elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+                animSpeed = 35
+            else
+                animSpeed = 20
+            end
+            MINES.Field.Settings:SetHeight(MINES.Field.Settings:GetHeight() - animSpeed)
+            if (MINES.Field.Settings:GetHeight() <= 0) then
+                MINES.Field.Settings:SetScript("OnUpdate", nil)
+                MINES.Field.Settings:SetHeight(0)
+                MINES.Field.Settings:Hide()
+                MINES.Field.SettingsButton.IsActive = false
+            end
+        end)
     end
-    RestorePoint(MINES.Field.StartGameButton)
-    RestorePoint(MINES.Field.Header.HideButton)
-    RestorePoint(MINES.Field.Header.CloseButton)
-    RestorePoint(MINES.Field.Header.Text)
+    function MINES.OpenSettings()
+        MINES.Field.SettingsButton.IsActive = true
+        local animSpeed = 0
+        if (GetFramerate() < 20) then
+            animSpeed = 100
+        elseif (GetFramerate() < 30) then
+            animSpeed = 70
+        elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+            animSpeed = 35
+        else
+            animSpeed = 20
+        end
+        MINES.Field.Settings:SetHeight(0)
+        MINES.Field.Settings:Show()
+        MINES.Field.Settings:SetScript("OnUpdate", function()
+            if (GetFramerate() < 20) then
+                animSpeed = 100
+            elseif (GetFramerate() < 30) then
+                animSpeed = 70
+            elseif (GetFramerate() >= 30 and GetFramerate() <= 60) then
+                animSpeed = 35
+            else
+                animSpeed = 20
+            end
+            MINES.Field.Settings:SetHeight(MINES.Field.Settings:GetHeight() + animSpeed)
+            if (MINES.Field.Settings:GetHeight() >= MINES.Field:GetHeight() - fieldHeaderH) then
+                MINES.Field.Settings:SetScript("OnUpdate", nil)
+                MINES.Field.Settings:SetHeight(MINES.Field:GetHeight() - fieldHeaderH)
+                local children  = {MINES.Field.Settings:GetChildren()}
+                for i, child in ipairs(children) do
+                    child:Show()
+                end
+                MINES.Field.SettingsButton.IsActive = false
+            end
+        end)
+    end
+    MINES.Field.Settings.Box = LoutenLib:CreateNewFrame(MINES.Field.Settings)
+    MINES.Field.Settings.Box:InitNewFrame(MINES.GameDifficulty["easy"].fieldWidth * 0.75, MINES.Field.Settings:GetHeight() * 0.85,
+                                        "CENTER", MINES.Field.Settings, "CENTER", 0,0,
+                                        0,0,0,0, false, false, nil)
+    MINES.Field.Settings.Box:Hide()
+    MINES.Field.Settings.ChangeDifficulty = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
+    MINES.Field.Settings.ChangeDifficulty:InitNewFrame(180, 25,
+                                        "TOP", MINES.Field.Settings.Box, "TOP", 0, 0,
+                                        .2,.2,.2,.735,
+                                        true, false, nil)
+    MINES.Field.Settings.ChangeDifficulty:InitNewDropDownList(.2,.2,.2,.735,
+                                                                "down", "Button",
+                                                                "Сложность: "..MINES.CurrentDifficulty,
+                                                                {"Easy", "Medium", "Hard"},
+                                                                {function()
+                                                                    if (MINES.COOPMode and not MINES.IsHosting) then return end
+                                                                    MINES.ChangeDifficulty("easy")
+                                                                    MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Easy")
+                                                                end,
+                                                                function()
+                                                                    if (MINES.COOPMode and not MINES.IsHosting) then return end
+                                                                    MINES.ChangeDifficulty("medium")
+                                                                    MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Medium")
+                                                                end,
+                                                                function()
+                                                                    if (MINES.COOPMode and not MINES.IsHosting) then return end
+                                                                    MINES.ChangeDifficulty("hard")
+                                                                    MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Hard")
+                                                                end})
+
+    MINES.Field.Settings.InvitePlayerBox = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
+    MINES.Field.Settings.InvitePlayerBox:InitNewFrame(170, 42,
+                                                "BOTTOM", MINES.Field.Settings.ChangeDifficulty, "BOTTOM", 0, -120,
+                                                0,0,0,0, false, false, nil)
+    MINES.Field.Settings.InvitePlayerBox.Text = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
+    MINES.Field.Settings.InvitePlayerBox.Text:SetTextToFrame("TOPLEFT", MINES.Field.Settings.InvitePlayerBox, "TOPLEFT", 0,0, true, 12, "Пригласить игрока:")
+    MINES.Field.Settings.InvitePlayerBox.Input = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
+    MINES.Field.Settings.InvitePlayerBox.Input:InitNewFrame(140, 18,
+                                                "BOTTOMLEFT", MINES.Field.Settings.InvitePlayerBox, "BOTTOMLEFT", 0, 0,
+                                                .8,.8,.8,1,
+                                                true, false, nil)
+    MINES.Field.Settings.InvitePlayerBox.Input:InitNewInput(13, 20, 0,0,.1,1,
+                                                nil, nil)
+    MINES.Field.Settings.InvitePlayerBox.SendButton = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
+    MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewFrame(25, 18,
+                                                            "BOTTOMRIGHT", MINES.Field.Settings.InvitePlayerBox, "BOTTOMRIGHT", 0,0,
+                                                            1,.3,.1,1, true, false, nil)
+    MINES.Field.Settings.InvitePlayerBox.SendButton:SetTextToFrame("CENTER", MINES.Field.Settings.InvitePlayerBox.SendButton, "CENTER", 0,0, true, 12, "Ок")
+    MINES.Field.Settings.InvitePlayerBox.SendButton:InitNewButton(1,.4,.2,1,
+                                                            1,.3,.1,1,
+                                                            1,.2,.05,1,
+                                                            1,.4,.2,1, nil,
+                                                            function()
+                                                                if (MINES.COOPMode) then return end
+                                                                if (MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText() ~= UnitName("player")) then
+                                                                    COOP_Send_InvitePartner(MINES.Field.Settings.InvitePlayerBox.Input.EditBox:GetText())
+                                                                    return
+                                                                end
+                                                            end)
+
+    MINES.Field.MinesLeft = LoutenLib:CreateNewFrame(MINES.Field)
+    MINES.Field.MinesLeft:InitNewFrame(50, 30,
+                                    "TOP", MINES.Field, "TOP", 150, 30,
+                                    0,0,0,.85, false, false, nil)
+    MINES.Field.MinesLeft:SetTextToFrame("CENTER", MINES.Field.MinesLeft, "CENTER", 0,0, true, 15, tostring(MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount))
+
+    MINES.Field.Settings.LeaveCOOP = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
+    MINES.Field.Settings.LeaveCOOP:InitNewFrame(120, 23,
+                                            "BOTTOM", MINES.Field.Settings.InvitePlayerBox, "BOTTOM", 0, -40,
+                                            .7,0,0,1, true, false, nil)
+    MINES.Field.Settings.LeaveCOOP:SetTextToFrame("CENTER", MINES.Field.Settings.LeaveCOOP, "CENTER", 0,0, true, 11, "Покинуть КООП")
+    MINES.Field.Settings.LeaveCOOP:InitNewButton(1,.1,.1,1,
+                                                .7,0,0,1,
+                                                .6,0,0,1,
+                                                1,.1,.1,1,
+                                                nil, 
+                                                function()
+                                                    COOP_Send_SendLeaveCOOP()
+                                                    MINES.DisconnectCOOP(1)
+                                                end)
+    MINES.Field.Settings.LeaveCOOP:Hide()
+
+    MINES.Field.Settings.LeaveMeAlone = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
+    MINES.Field.Settings.LeaveMeAlone:InitNewFrame(100, 25,
+                                                    "BOTTOM", MINES.Field.Settings.LeaveCOOP, "BOTTOM", -40, -40,
+                                                    0,0,0,0, true, false, nil)
+    MINES.Field.Settings.LeaveMeAlone:InitNewCheckButton(30, false, "Отключить приглашения\nот других игроков", true, 12,
+                                                            function()
+                                                                MINES_DB.Profiles[UnitName("player")].LeaveMeAlone = not MINES_DB.Profiles[UnitName("player")].LeaveMeAlone
+                                                            end)
+    if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
+        MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
+    end
+
+
+    MINES.Field.ResumeGame = LoutenLib:CreateNewFrame(MINES.Field)
+    MINES.Field.ResumeGame:Hide()
+    MINES.Field.ResumeGame:InitNewFrame(MINES.Field.Settings.Box:GetWidth(), 60,
+                                        "CENTER", MINES.Field, "CENTER", 0,0,
+                                        0,0,0,.735, true, false, nil)
+    MINES.Field.ResumeGame.ResumeBT = LoutenLib:CreateNewFrame(MINES.Field.ResumeGame)
+    MINES.Field.ResumeGame.ResumeBT:InitNewFrame2(MINES.Field.ResumeGame:GetWidth()/2 * .9, MINES.Field.ResumeGame:GetHeight() * .7,
+                                                    "LEFT", MINES.Field.ResumeGame, "LEFT", 10,0,
+                                                    250, 128, 52,1, true, false, nil)
+    MINES.Field.ResumeGame.ResumeBT:InitNewButton2(250, 128, 52,1,
+                                                    nil, function()
+                                                        COOP_Send_ChangeDifficulty(MINES.CurrentDifficulty)
+                                                        COOP_Send_CreateNewGame()
+                                                    end)
+    MINES.Field.ResumeGame.ResumeBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.ResumeBT, "CENTER", 0,0, true, 12, "Продолжить игру")
+
+    MINES.Field.ResumeGame.NewGameBT = LoutenLib:CreateNewFrame(MINES.Field.ResumeGame)
+    MINES.Field.ResumeGame.NewGameBT:InitNewFrame2(MINES.Field.ResumeGame:GetWidth()/2 * .9, MINES.Field.ResumeGame:GetHeight() * .7,
+                                                    "RIGHT", MINES.Field.ResumeGame, "RIGHT", -10,0,
+                                                    125, 255, 92, 1, true, false, nil)
+    MINES.Field.ResumeGame.NewGameBT:InitNewButton2(125, 255, 92, 1,
+                                                    nil, function()
+                                                        MINES.Field.ResumeGame:Hide()
+                                                        MINES.StartGameBT()
+                                                    end)
+    MINES.Field.ResumeGame.NewGameBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.NewGameBT, "CENTER", 0,0, true, 12, "Начать новую игру")
+    function MINES.RestartFieldInterface()
+        local function RestorePoint(f)
+            local point, relativeTo, relativePoint, xOfs, yOfs = f:GetPoint()
+            f:ClearAllPoints()
+            f:SetPoint(point, relativeTo, relativePoint, xOfs, yOfs)
+        end
+        RestorePoint(MINES.Field.StartGameButton)
+        RestorePoint(MINES.Field.Header.HideButton)
+        RestorePoint(MINES.Field.Header.CloseButton)
+        RestorePoint(MINES.Field.Header.Text)
+    end
 end
 
--- GLOBALTEST = false
--- local _1 = 0
--- SlashCmdList.TESTTT = function(msg, editBox)
---     if (#msg == 0) then
---         GLOBALTEST = false
---         _1 = 0
---         local qwe = GetTime()
---         local fff = CreateFrame("Frame")
---         fff:SetScript("OnUpdate", function()
---             if (MINES.EndGame) then
---                 _1 = _1 + 1
---                 MINES.StartGameBT()
---                 if (GLOBALTEST) then
---                     fff:SetScript("OnUpdate", nil)
---                     MINES.LoseGame()
---                     MINES:PrintMsg("Попыток: ".._1)
---                     MINES:PrintMsg("Время: "..GetTime() - qwe)
---                     for i = 1, MINES.GetActualMaxCells() do
---                         if (MINES.Field.Cells[i].New) then
---                             MINES.Field.Cells[i]:SetBackdropColor(.3,1,.9,1)
---                         end
---                         if (MINES.Field.Cells[i].Old) then
---                             MINES.Field.Cells[i]:SetBackdropColor(1,.7,0,1)
---                         end
---                         MINES.Field.Cells[i].Old = false
---                         MINES.Field.Cells[i].New = false
---                     end
---                     return
---                 end
---                 MINES.LoseGame()
---                 for i = 1, MINES.GetActualMaxCells() do
---                     MINES.Field.Cells[i].Old = false
---                     MINES.Field.Cells[i].New = false
---                 end
---             end
---         end)
---     end
--- end
 
--- SLASH_TESTTT1 = "/t123"
+GLOBALTEST = false
+local _1 = 0
+SlashCmdList.TESTTT = function(msg, editBox)
+    if (#msg == 0) then
+        GLOBALTEST = false
+        _1 = 0
+        local qwe = GetTime()
+        local fff = CreateFrame("Frame")
+        fff:SetScript("OnUpdate", function()
+            if (MINES.EndGame) then
+                _1 = _1 + 1
+                MINES.StartGameBT()
+                if (GLOBALTEST) then
+                    fff:SetScript("OnUpdate", nil)
+                    MINES.LoseGame()
+                    MINES:PrintMsg("Попыток: ".._1)
+                    MINES:PrintMsg("Время: "..GetTime() - qwe)
+                    for i = 1, MINES.GetActualMaxCells() do
+                        if (MINES.Field.Cells[i].New) then
+                            MINES.Field.Cells[i]:SetBackdropColor(.3,1,.9,1)
+                        end
+                        if (MINES.Field.Cells[i].Old) then
+                            MINES.Field.Cells[i]:SetBackdropColor(1,.7,0,1)
+                        end
+                        MINES.Field.Cells[i].Old = false
+                        MINES.Field.Cells[i].New = false
+                    end
+                    return
+                end
+                MINES.LoseGame()
+                for i = 1, MINES.GetActualMaxCells() do
+                    MINES.Field.Cells[i].Old = false
+                    MINES.Field.Cells[i].New = false
+                end
+            end
+        end)
+    end
+end
+
+SLASH_TESTTT1 = "/t123"

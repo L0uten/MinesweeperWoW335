@@ -5,15 +5,18 @@ MINES.COOPMode = false
 MINES.IsHosting = false
 MINES.PartnerName = nil
 
-MINES.PartnerCursor = LoutenLib:CreateNewFrame(UIParent)
-MINES.PartnerCursor:InitNewFrame(23, 23,
-                            "BOTTOMLEFT", nil, "BOTTOMLEFT", 0, 0,
-                            1,1,0,1,
-                            false, false, nil)
-MINES.PartnerCursor:Hide()
-MINES.PartnerCursor:SetFrameStrata("TOOLTIP")
-MINES.PartnerCursor.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\cursor.blp")
-MINES.PartnerCursor.LastId = nil
+function MINES:InitCOOP()
+    MINES.PartnerCursor = LoutenLib:CreateNewFrame(UIParent)
+    MINES.PartnerCursor:InitNewFrame(23, 23,
+                                "BOTTOMLEFT", nil, "BOTTOMLEFT", 0, 0,
+                                1,1,0,1,
+                                false, false, nil)
+    MINES.PartnerCursor:Hide()
+    MINES.PartnerCursor:SetFrameStrata("TOOLTIP")
+    MINES.PartnerCursor.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\cursor.blp")
+    MINES.PartnerCursor.LastId = nil
+end
+
 function MINES.SetCursorTo(frame, cellId)
     cellId = tonumber(cellId)
     if (MINES.Field:IsShown() and not MINES.IsGameHidden) then
@@ -23,21 +26,21 @@ function MINES.SetCursorTo(frame, cellId)
         MINES.PartnerCursor.LastId = MINES.PartnerCursor.LastId or cellId
 
         if (MINES.Field.Cells[cellId].Opened) then
-            MINES.Field.Cells[cellId]:SetBackdropColor(.4,.4,.4,1)
+            MINES.Field.Cells[cellId]:SetBackdropColor(.35,.35,.35,1)
         else
-            MINES.Field.Cells[cellId]:SetBackdropColor(1,1,.2,1)
+            MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.2,1)
         end
         if (MINES.Field.Cells[cellId].Flag) then
-            MINES.Field.Cells[cellId]:SetBackdropColor(.3,.3,1,1)
+            MINES.Field.Cells[cellId]:SetBackdropColor(.3,.3,.7,1)
         end
 
         if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Opened) then
-            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(.8,.8,.8,1)
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(.5,.5,.5,1)
         else
-            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,1,0,1)
+            MINES.ReturnToGreenCell(MINES.PartnerCursor.LastId)
         end
         if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Flag) then
-            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,0,1,1)
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,0,.7,1)
         end
         MINES.PartnerCursor.LastId = cellId
     end

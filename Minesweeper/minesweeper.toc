@@ -2,7 +2,7 @@
 ## Title: MineSweeper
 ## Notes: Игра "Сапёр"
 ## Author: Exboyfriend
-## Version: 1.5
+## Version: 1.6
 ## SavedVariables: MINES_DB
 
 libs\LoutenLib\LoutenLib.lua
