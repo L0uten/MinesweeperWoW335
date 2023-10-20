@@ -4,8 +4,8 @@ local LoutenLib, MINES = unpack(Engine)
 local Init = CreateFrame("Frame")
 Init:RegisterEvent("PLAYER_LOGIN")
 Init:SetScript("OnEvent", function()
-    LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.6")
-    MINES:SetRevision("2023", "10", "08", "01", "00", "00")
+    LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.6.1")
+    MINES:SetRevision("2023", "10", "20", "00", "00", "01")
     MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
     MINES:LoadedFunction(function()
         MINES:PrintMsg("/mines - открыть поле с игрой")
@@ -1172,7 +1172,7 @@ function MINES:CreateInterface()
     MINES.Field.Settings.LeaveMeAlone:InitNewFrame(100, 25,
                                                     "BOTTOM", MINES.Field.Settings.LeaveCOOP, "BOTTOM", -40, -40,
                                                     0,0,0,0, true, false, nil)
-    MINES.Field.Settings.LeaveMeAlone:InitNewCheckButton(30, false, "Отключить приглашения\nот других игроков", true, 12,
+    MINES.Field.Settings.LeaveMeAlone:InitNewCheckButton(20, false, "Отключить приглашения\nот других игроков", true, 12,
                                                             function()
                                                                 MINES_DB.Profiles[UnitName("player")].LeaveMeAlone = not MINES_DB.Profiles[UnitName("player")].LeaveMeAlone
                                                             end)
