@@ -37,7 +37,7 @@ function MINES.SetCursorTo(frame, cellId)
         if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Opened) then
             MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(.5,.5,.5,1)
         else
-            MINES.ReturnToGreenCell(MINES.PartnerCursor.LastId)
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,.5,0,1)
         end
         if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Flag) then
             MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,0,.7,1)
