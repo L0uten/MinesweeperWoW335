@@ -110,7 +110,7 @@ function MINES:CreateNewField(difficulty)
                                             "TOPLEFT", MINES.Field, "TOPLEFT", x*cellsW, -y*cellsH,
                                             0,0,0,0,
                                             false, false, nil)
-            MINES.Field.Cells[c+1]:TextureToBackdrop(true, 3, 2, 0,0,0,1, 0,.5,0,1)
+            MINES.Field.Cells[c+1]:TextureToBackdrop(true, 2, 0, 0,0,0,1, 0,.5,0,1)
             MINES.Field.Cells[c+1]:SetTextToFrame("CENTER", MINES.Field.Cells[c+1], "CENTER", 0, 0, true, 12, "")
             MINES.Field.Cells[c+1].Text:Hide()
             
