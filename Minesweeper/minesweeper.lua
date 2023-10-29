@@ -4,8 +4,8 @@ local LoutenLib, MINES = unpack(Engine)
 local Init = CreateFrame("Frame")
 Init:RegisterEvent("PLAYER_LOGIN")
 Init:SetScript("OnEvent", function()
-    LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.6.2")
-    MINES:SetRevision("2023", "10", "21", "00", "00", "01")
+    LoutenLib:InitAddon("Minesweeper", "Сапёр", "1.7")
+    MINES:SetRevision("2023", "10", "29", "00", "01", "00")
     MINES_DB = LoutenLib:InitDataStorage(MINES_DB)
     MINES:LoadedFunction(function()
         MINES:PrintMsg("/mines - открыть поле с игрой")
@@ -31,16 +31,19 @@ MINES.GameDifficulty = {
         fieldWidth = 500,
         fieldHeight = 500,
         minesCount = 70,
+        timeInSec = 240,
     },
     ["medium"] = {
         fieldWidth = 750,
         fieldHeight = 500,
         minesCount = 110,
+        timeInSec = 360,
     },
     ["hard"] = {
         fieldWidth = 1000,
         fieldHeight = 500,
         minesCount = 160,
+        timeInSec = 480,
     }
 }
 MINES.CurrentDifficulty = "easy"
@@ -53,21 +56,25 @@ local fieldHeaderH = 23
 -- ЯЧЕЙКИ
 local cellsW = 25
 local cellsH = cellsW
-
 MINES.Field.Cells = {}
-
+MINES.CellsLeft = ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsW)) - MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
 MINES.MinesLeft = MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
 MINES.EndGame = true
-MINES.CellsLeft = ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsW)) - MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
+
 MINES.Timer = CreateFrame("Frame")
 MINES.StartTime = 0
 MINES.IsGameHidden = false
 
+MINES.GreenColor = .45
+MINES.GrayColor = .45
 
+-- Режим
+MINES.Mode = 0 -- 0 - standart mode, 1 - time game
+MINES.NextMode = 0
+MINES.TimeLeft = 0
 
-
-
-
+-----------
+-- FIELD --
 function MINES:CreateNewField(difficulty)
     MINES.SetDifficulty(difficulty)
 
@@ -110,17 +117,17 @@ function MINES:CreateNewField(difficulty)
                                             "TOPLEFT", MINES.Field, "TOPLEFT", x*cellsW, -y*cellsH,
                                             0,0,0,0,
                                             false, false, nil)
-            MINES.Field.Cells[c+1]:TextureToBackdrop(true, 2, 0, 0,0,0,1, 0,.5,0,1)
+            MINES.Field.Cells[c+1]:TextureToBackdrop(true, 2, 0, 0,0,0,1, 0,MINES.GreenColor,0,1)
             MINES.Field.Cells[c+1]:SetTextToFrame("CENTER", MINES.Field.Cells[c+1], "CENTER", 0, 0, true, 12, "")
             MINES.Field.Cells[c+1].Text:Hide()
             
             MINES.Field.Cells[c+1]:SetScript("OnEnter", function ()
-                MINES.Field.Cells[c+1]:SetBackdropColor(.5,.5,.2,1)
+                MINES.Field.Cells[c+1]:SetBackdropColor(MINES.GreenColor,MINES.GreenColor,.2,1)
                 if (MINES.COOPMode) then MINES.SendCursorPoint(c+1) end
             end)
 
             MINES.Field.Cells[c+1]:SetScript("OnLeave", function ()
-                MINES.Field.Cells[c+1]:SetBackdropColor(0,.5,0,1)
+                MINES.Field.Cells[c+1]:SetBackdropColor(0,MINES.GreenColor,0,1)
             end)
     
             MINES.Field.Cells[c+1]:SetScript("OnMouseUp", function (arg1, arg2)
@@ -139,53 +146,6 @@ function MINES:CreateNewField(difficulty)
     end
     MINES.RefreshField()
     MINES.Field:Hide()
-end
-function MINES.StartTimer()
-    MINES.StartTime = GetTime()
-    return MINES.StartTime
-end
-function MINES.StopTimer()
-    local endTime = GetTime() - MINES.StartTime
-    MINES.StartTime = 0
-    return endTime
-end
-function MINES.CheckForWin()
-    if (MINES.CellsLeft == 0) then
-        MINES.DisableField()
-        MINES.Field.StartGameButton:Show()
-        MINES:PrintMsg("Вы ПОБЕДИЛИ в сложности "..MINES.CurrentDifficulty.." за "..SecondsToTime(MINES.StopTimer())..".", "2bff2b")
-    end
-end
-function MINES.GetCellsLeft()
-    return ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsW)) - MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
-end
-function MINES.GreenToGrayCell(cellId)
-    MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.5,1)
-    MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(.35,.35,.35,1)
-        if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
-    end)
-
-    MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.5,1)
-    end)
-end
-function MINES.ReturnToGreenCell(cellId)
-    MINES.Field.Cells[cellId]:SetBackdropColor(0,.5,0,1)
-    MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.2,1)
-        if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
-    end)
-
-    MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
-        MINES.Field.Cells[cellId]:SetBackdropColor(0,.5,0,1)
-    end)
-end
-function MINES.GetActualMaxCells()
-    return ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsH))
-end
-function MINES.GetMaxCellsInRow()
-    return MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW
 end
 function MINES.RefreshField()
     MINES.DisableField()
@@ -216,16 +176,6 @@ function MINES.RefreshField()
         MINES.Field.Cells[i].IsOverLimit = true
     end
 end
-function MINES.ChangeDifficulty(difficulty)
-    MINES.Field:Hide()
-    MINES.NextDifficulty = difficulty
-    MINES.RestartFieldInterface()
-    MINES.Field:Show()
-    MINES.Field.StartGameButton:Show()
-end
-function MINES.SetDifficulty(difficulty)
-    MINES.CurrentDifficulty = difficulty
-end
 function MINES.DisableField()
     for i = 1, MINES.GetActualMaxCells() do
         MINES.Field.Cells[i]:EnableMouse(false)
@@ -234,16 +184,6 @@ end
 function MINES.EnableField()
     for i = 1, MINES.GetActualMaxCells() do
         MINES.Field.Cells[i]:EnableMouse(true)
-    end
-end
-function MINES.AddTextToCells()
-    for i = 1, MINES.GetActualMaxCells() do
-        MINES.Field.Cells[i].Text:SetText("")
-        if (not MINES.Field.Cells[i].Mined) then
-            if (MINES.Field.Cells[i].MinesInRange ~= 0) then
-                MINES.Field.Cells[i].Text:SetText(MINES.Field.Cells[i].MinesInRange)
-            end
-        end
     end
 end
 function MINES.ClearingField()
@@ -255,9 +195,97 @@ function MINES.ClearingField()
         MINES.Field.Cells[i].IsResetMine = false
         MINES.Field.Cells[i].Text:Hide()
         MINES.StartTime = 0
+        MINES.TimeLeft = 0
         MINES.ReturnToGreenCell(i)
     end
 end
+
+-----------
+-- CELLS --
+function MINES.GetCellsLeft()
+    return ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsW)) - MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
+end
+function MINES.GetActualMaxCells()
+    return ((MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW) * (MINES.GameDifficulty[MINES.CurrentDifficulty].fieldHeight / cellsH))
+end
+function MINES.GetMaxCellsInRow()
+    return MINES.GameDifficulty[MINES.CurrentDifficulty].fieldWidth / cellsW
+end
+function MINES.GreenToGrayCell(cellId)
+    MINES.Field.Cells[cellId]:SetBackdropColor(MINES.GrayColor,MINES.GrayColor,MINES.GrayColor,1)
+    MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
+        MINES.Field.Cells[cellId]:SetBackdropColor(MINES.GrayColor-.1,MINES.GrayColor-.1,MINES.GrayColor-.1,1)
+        if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
+    end)
+
+    MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
+        MINES.Field.Cells[cellId]:SetBackdropColor(MINES.GrayColor,MINES.GrayColor,MINES.GrayColor,1)
+    end)
+end
+function MINES.ReturnToGreenCell(cellId)
+    MINES.Field.Cells[cellId]:SetBackdropColor(0,MINES.GreenColor,0,1)
+    MINES.Field.Cells[cellId]:SetScript("OnEnter", function ()
+        MINES.Field.Cells[cellId]:SetBackdropColor(MINES.GreenColor,MINES.GreenColor,.2,1)
+        if (MINES.COOPMode) then MINES.SendCursorPoint(cellId) end
+    end)
+
+    MINES.Field.Cells[cellId]:SetScript("OnLeave", function ()
+        MINES.Field.Cells[cellId]:SetBackdropColor(0,MINES.GreenColor,0,1)
+    end)
+end
+function MINES.AddTextToCells()
+    for i = 1, MINES.GetActualMaxCells() do
+        MINES.Field.Cells[i].Text:SetText("")
+        if (not MINES.Field.Cells[i].Mined) then
+            if (MINES.Field.Cells[i].MinesInRange ~= 0) then
+                MINES.Field.Cells[i].Text:SetText(MINES.Field.Cells[i].MinesInRange)
+            end
+        end
+    end
+end
+
+-----------
+-- TIMER --
+function MINES.StartTimer()
+    MINES.StartTime = GetTime()
+    return MINES.StartTime
+end
+function MINES.StopTimer()
+    local endTime = GetTime() - MINES.StartTime
+    MINES.StartTime = 0
+    return endTime
+end
+
+----------------
+-- DIFFICULTY --
+function MINES.ChangeDifficulty(difficulty)
+    MINES.Field:Hide()
+    MINES.NextDifficulty = difficulty
+    MINES.RestartFieldInterface()
+    MINES.Field:Show()
+    MINES.Field.StartGameButton:Show()
+    MINES.Field.TimeLeft:Hide()
+end
+function MINES.SetDifficulty(difficulty)
+    MINES.CurrentDifficulty = difficulty
+end
+function MINES.GetDifficulty()
+    local difficultyTextRu, difficultyTextEn
+    if (MINES.CurrentDifficulty == "easy") then
+        difficultyTextRu = "Легкая"
+        difficultyTextEn = "Easy"
+    elseif (MINES.CurrentDifficulty == "medium") then
+        difficultyTextRu = "Средняя"
+        difficultyTextEn = "Medium"
+    elseif (MINES.CurrentDifficulty == "hard") then
+        difficultyTextRu = "Сложная"
+        difficultyTextEn = "Hard"
+    end
+    return MINES.CurrentDifficulty, difficultyTextRu, difficultyTextEn
+end
+
+-----------
+-- MINES --
 function MINES.SetFlag(cellId)
     if (MINES.MinesLeft == 0 and not MINES.Field.Cells[cellId].Flag) then return end
     if (not MINES.Field.Cells[cellId].Opened) then
@@ -330,7 +358,12 @@ function MINES.OpenSquare(indexCell)
 end
 function MINES.OpenCell(cellId)
     if (MINES.Field.Cells[cellId].Flag) then return end
-    if (MINES.StartTime == 0) then MINES.StartTimer() end
+    if (MINES.StartTime == 0) then
+        MINES.StartTimer()
+        if (MINES.GetMode() == 1) then
+            MINES.StartTimeMode()
+        end
+    end
     if (MINES.Field.Cells[cellId].Opened) then return end
     if (MINES.Field.Cells[cellId].Mined) then MINES.LoseGame() return end
     if (MINES.COOPMode and not MINES.Field.Cells[cellId].Opened) then COOP_Send_OpenedCell(cellId) end
@@ -610,7 +643,7 @@ function MINES.MineCells()
 
             -- Квадрат внутри
             if (MINES.Field.Cells[i].Mined and
-                i % MINES.GetMaxCellsInRow() <= 17 and i % MINES.GetMaxCellsInRow() ~= 0 and i < (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3)-3) then
+                i % MINES.GetMaxCellsInRow() <= MINES.GetMaxCellsInRow()-3 and i % MINES.GetMaxCellsInRow() ~= 0 and i < (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3)-3) then
                 if (MINES.Field.Cells[i+1+1+1].Mined and MINES.Field.Cells[i+1+1+1+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined and 
                     MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()+MINES.GetMaxCellsInRow()].Mined) then
                     if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
@@ -627,8 +660,7 @@ function MINES.MineCells()
             end
             -- Квадрат внизу
             if (MINES.Field.Cells[i].Mined and
-                i % MINES.GetMaxCellsInRow() <= 17 and i % MINES.GetMaxCellsInRow() ~= 0 and i < (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*2)-3 and
-                i > (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*3)) then
+                i % MINES.GetMaxCellsInRow() <= MINES.GetMaxCellsInRow()-3 and i % MINES.GetMaxCellsInRow() ~= 0 and i < (MINES.GetActualMaxCells() - MINES.GetMaxCellsInRow()*2)-3) then
                 if (MINES.Field.Cells[i+1+1+1].Mined) then
                     if (MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+1].Mined and
                         not MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()].Mined and MINES.Field.Cells[i+MINES.GetMaxCellsInRow()+1+MINES.GetMaxCellsInRow()+1].Mined) then
@@ -644,7 +676,7 @@ function MINES.MineCells()
             end
             -- Квадрат сверху
             if (MINES.Field.Cells[i].Mined and
-                i % MINES.GetMaxCellsInRow() <= 17 and i % MINES.GetMaxCellsInRow() ~= 0 and i > MINES.GetMaxCellsInRow()*2 and i <= MINES.GetMaxCellsInRow()*3 ) then
+                i % MINES.GetMaxCellsInRow() <= MINES.GetMaxCellsInRow()-3 and i % MINES.GetMaxCellsInRow() ~= 0 and i > MINES.GetMaxCellsInRow()*2) then
                 if (MINES.Field.Cells[i+1+1+1].Mined) then
 
                     if (MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1].Mined and not MINES.Field.Cells[i-MINES.GetMaxCellsInRow()+1+1].Mined and
@@ -789,6 +821,31 @@ function MINES.FindMinesInRange()
         end
     end
 end
+
+----------
+-- GAME -- 
+function MINES.PreparingGame()
+    local isFieldShown = MINES.Field:IsShown()
+    MINES.StopTimeMode()
+    MINES.Field:Hide()
+    MINES.ClearingField()
+    MINES.SetDifficulty(MINES.NextDifficulty)
+    MINES.ChangeMode(MINES.NextMode)
+    MINES.RefreshField()
+    MINES.Field.Settings:SetWidth(MINES.Field:GetWidth())
+    if (isFieldShown) then MINES.Field:Show() end
+    MINES.MineCells()
+    MINES.MinesLeft = MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
+    MINES.Field.MinesLeft.Text:SetText(MINES.MinesLeft)
+    MINES.EndGame = false
+    if (MINES.GetMode() == 1) then
+        MINES.Field.TimeLeft:Show()
+        MINES.Field.TimeLeft.Text:SetText(MINES.GameDifficulty[MINES.GetDifficulty()].timeInSec)
+    end
+    if (not MINES.COOPMode) then
+        MINES.StartGame()
+    end
+end
 function MINES.StartGame()
     MINES.Field.StartGameButton:Hide()
     MINES.FindMinesInRange()
@@ -797,24 +854,9 @@ function MINES.StartGame()
     MINES:PrintMsg("Начата новая игра.")
     MINES.Field.StartGameButton:EnableMouse(true)
 end
-function MINES.PreparingGame()
-    local isFieldShown = MINES.Field:IsShown()
-    MINES.Field:Hide()
-    MINES.ClearingField()
-    MINES.SetDifficulty(MINES.NextDifficulty)
-    MINES.RefreshField()
-    MINES.Field.Settings:SetWidth(MINES.Field:GetWidth())
-    if (isFieldShown) then MINES.Field:Show() end
-    MINES.MineCells()
-    MINES.MinesLeft = MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
-    MINES.Field.MinesLeft.Text:SetText(MINES.MinesLeft)
-    MINES.EndGame = false
-    if (not MINES.COOPMode) then
-        MINES.StartGame()
-    end
-end
 function MINES.LoseGame()
     if (not MINES.EndGame) then
+        MINES.StopTimeMode()
         MINES.StopTimer()
         MINES:PrintMsg("Вы проиграли.", "ff2121")
         local isFieldShown = MINES.Field:IsShown()
@@ -833,13 +875,75 @@ function MINES.LoseGame()
         if (not MINES.IsGameHidden) then MINES.Field.StartGameButton:Show() end
     end
 end
+function MINES.CheckForWin()
+    if (MINES.CellsLeft == 0) then
+        if (MINES.GetMode() == 1) then
+            MINES.StopTimeMode()
+        end
+        MINES.DisableField()
+        MINES.Field.StartGameButton:Show()
+        MINES:PrintMsg("Вы ПОБЕДИЛИ в сложности "..MINES.CurrentDifficulty.." за "..SecondsToTime(MINES.StopTimer())..".", "2bff2b")
+    end
+end
+function MINES.StartGameButtonFunction()
+    MINES.Field.StartGameButton:EnableMouse(false)
+    if (MINES.COOPMode) then
+        if (not MINES.IsHosting) then
+            COOP_Send_StartGamePartner()
+            return
+        end
+        MINES.Field.StartGameButton:Hide()
+        MINES.DisableField()
+        COOP_Send_ChangeDifficulty(MINES.NextDifficulty)
+        COOP_Send_ChangeMode(MINES.NextMode)
+        COOP_Send_CreateNewGame()
+        return
+    end
 
+    MINES.PreparingGame()
+end
 
+-----------
+-- MODES --
+function MINES.ChangeMode(mode)
+    -- 0 - standart mode, 1 - time game
+    if (type(mode) == "number") then
+        MINES.Mode = mode
 
-
-
-
-
+        if (mode == 0) then MINES.Field.Header.GameMode.Text:SetTextColor(1,1,1,1) end
+        if (mode == 1) then MINES.Field.Header.GameMode.Text:SetTextColor(1,.5,.5,1) end
+        MINES.Field.Header.GameMode.Text:SetText("Режим: "..select(2, MINES.GetMode()))
+    end
+end
+function MINES.GetMode()
+    local modeTextRu, modeTextEn
+    if (MINES.Mode == 0) then
+        modeTextEn = "Stantard"
+        modeTextRu = "Стандартный"
+    elseif (MINES.Mode == 1) then
+        modeTextEn = "Time Game"
+        modeTextRu = "Игра на время"
+    end
+    return MINES.Mode, modeTextRu, modeTextEn
+end
+function MINES.StartTimeMode()
+    MINES.Field.TimeLeft:SetScript("OnUpdate", function()
+        MINES.TimeLeft = floor(MINES.GameDifficulty[MINES.GetDifficulty()].timeInSec - (GetTime() - MINES.StartTime))
+        if (MINES.COOPMode) then
+            MINES.TimeLeft = floor((MINES.GameDifficulty[MINES.GetDifficulty()].timeInSec / 1.5) - (GetTime() - MINES.StartTime))
+        end
+        MINES.Field.TimeLeft.Text:SetText(MINES.TimeLeft)
+        if (MINES.TimeLeft <= 0) then
+            MINES.StopTimeMode()
+            MINES.LoseGame()
+        end
+    end)
+end
+function MINES.StopTimeMode()
+    MINES.Field.TimeLeft:SetScript("OnUpdate", nil)
+    MINES.Field.TimeLeft.Text:SetText("")
+    MINES.Field.TimeLeft:Hide()
+end
 
 
 
@@ -847,31 +951,16 @@ end
 -- Интерфейс игры
 function MINES:CreateInterface()
     MINES.Field.StartGameButton = LoutenLib:CreateNewFrame(MINES.Field)
-    MINES.Field.StartGameButton:InitNewFrame2(160, 40,
-                                "TOP", MINES.Field, "TOP", 0, 40,
+    MINES.Field.StartGameButton:InitNewFrame2(140, 35,
+                                "BOTTOM", MINES.Field, "TOP", 0, 0,
                                 52, 235, 107,1,
                                 true, false, nil)
     MINES.Field.StartGameButton:InitNewButton2(52, 235, 107, 1,
                                         function ()
-                                            MINES.StartGameBT()
+                                            MINES.StartGameButtonFunction()
                                         end)
     MINES.Field.StartGameButton:SetTextToFrame("CENTER", MINES.Field.StartGameButton, "CENTER", 0, 0, true, 16, "Начать игру")
-    function MINES.StartGameBT()
-        MINES.Field.StartGameButton:EnableMouse(false)
-        if (MINES.COOPMode) then
-            if (not MINES.IsHosting) then
-                COOP_Send_StartGamePartner()
-                return
-            end
-            MINES.Field.StartGameButton:Hide()
-            MINES.DisableField()
-            COOP_Send_ChangeDifficulty(MINES.NextDifficulty)
-            COOP_Send_CreateNewGame()
-            return
-        end
 
-        MINES.PreparingGame()
-    end
 
     MINES.Field.Header:InitNewFrame(MINES.Field:GetWidth(), fieldHeaderH,
                                 "TOP", MINES.Field, "TOP", 0, 0,
@@ -981,13 +1070,24 @@ function MINES:CreateInterface()
                                                 end
                                                 MINES.IsGameHidden = not MINES.IsGameHidden
                                             end)
+
+    MINES.Field.Header.GameMode = LoutenLib:CreateNewFrame(MINES.Field.Header)
+    MINES.Field.Header.GameMode:InitNewFrame(200, fieldHeaderH,
+                                            "LEFT", MINES.Field.Header, "LEFT", 10, 0,
+                                            0,0,0,0, false, false, nil)      
+    MINES.Field.Header.GameMode:SetTextToFrame("LEFT", MINES.Field.Header.GameMode, "LEFT", 0,0, true, 11, "Режим: "..select(2, MINES.GetMode()))
+
     MINES.Field.Header.PartnerInfo = LoutenLib:CreateNewFrame(MINES.Field.Header)
     MINES.Field.Header.PartnerInfo:InitNewFrame(200, fieldHeaderH,
-                                            "LEFT", MINES.Field.Header, "LEFT", 10, 0,
-                                            0,0,0,0, false, false, nil)
+                                            "LEFT", MINES.Field.Header.Text, "LEFT", 80, 0,
+                                            0,0,0,0, false, false, nil)      
     MINES.Field.Header.PartnerInfo:SetTextToFrame("LEFT", MINES.Field.Header.PartnerInfo, "LEFT", 0,0, true, 11, "COOP:")
     MINES.Field.Header.PartnerInfo:Hide()
     MINES.Field.Header.PartnerInfo.Text:SetTextColor(.5,1,.5,1)
+
+
+
+
     MINES.Field.SettingsButton = LoutenLib:CreateNewFrame(MINES.Field)
     MINES.Field.SettingsButton:InitNewFrame(130, 25,
                                         "TOPLEFT", MINES.Field, "TOPLEFT", 0, 25,
@@ -1018,6 +1118,16 @@ function MINES:CreateInterface()
                                             end
                                         end, nil)
     MINES.Field.SettingsButton.IsActive = false
+
+
+
+
+
+
+
+
+
+
     MINES.Field.Settings = LoutenLib:CreateNewFrame(MINES.Field.Header)
     MINES.Field.Settings:InitNewFrame(MINES.Field:GetWidth(), MINES.Field:GetHeight() - fieldHeaderH,
                                     "TOP", MINES.Field.Header, "TOP", 0, -fieldHeaderH,
@@ -1091,14 +1201,27 @@ function MINES:CreateInterface()
                                         "CENTER", MINES.Field.Settings, "CENTER", 0,0,
                                         0,0,0,0, false, false, nil)
     MINES.Field.Settings.Box:Hide()
+
+
+
+
+
+
+
+
+
+
+
+
+
     MINES.Field.Settings.ChangeDifficulty = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
-    MINES.Field.Settings.ChangeDifficulty:InitNewFrame(180, 25,
-                                        "TOP", MINES.Field.Settings.Box, "TOP", 0, 0,
-                                        .2,.2,.2,.735,
+    MINES.Field.Settings.ChangeDifficulty:InitNewFrame2(180, 25,
+                                        "TOPLEFT", MINES.Field.Settings.Box, "TOPLEFT", 0, 0,
+                                        3,168,116,.8,
                                         true, false, nil)
-    MINES.Field.Settings.ChangeDifficulty:InitNewDropDownList(.2,.2,.2,.735,
+    MINES.Field.Settings.ChangeDifficulty:InitNewDropDownList(3,168,116,.8,
                                                                 "down", "Button",
-                                                                "Сложность: "..MINES.CurrentDifficulty,
+                                                                "Сложность: "..select(3,MINES.GetDifficulty()),
                                                                 {"Easy", "Medium", "Hard"},
                                                                 {function()
                                                                     if (MINES.COOPMode and not MINES.IsHosting) then return end
@@ -1116,9 +1239,38 @@ function MINES:CreateInterface()
                                                                     MINES.Field.Settings.ChangeDifficulty.DropDownButton.Text:SetText("Сложность: Hard")
                                                                 end})
 
+
+    MINES.Field.Settings.ChangeMode = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
+    MINES.Field.Settings.ChangeMode:InitNewFrame2(190, 25,
+                                        "TOPRIGHT", MINES.Field.Settings.Box, "TOPRIGHT", 0, 0,
+                                        168, 75, 3,.8,
+                                        true, false, nil)
+    MINES.Field.Settings.ChangeMode:InitNewDropDownList(168, 75, 3,.8,
+                                                                "down", "Button",
+                                                                "Режим: "..select(2, MINES.GetMode()),
+                                                                {"Стандартный", "Игра на время"},
+                                                                {function()
+                                                                    if (MINES.COOPMode and not MINES.IsHosting) then return end
+                                                                    MINES.NextMode = 0
+                                                                    MINES.Field.Settings.ChangeMode.DropDownButton.Text:SetText("Режим: Стандартный")
+                                                                end,
+                                                                function()
+                                                                    if (MINES.COOPMode and not MINES.IsHosting) then return end
+                                                                    MINES.NextMode = 1
+                                                                    MINES.Field.Settings.ChangeMode.DropDownButton.Text:SetText("Режим: Игра на время")
+                                                                end})
+
+
+
+
+
+
+
+
+
     MINES.Field.Settings.InvitePlayerBox = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
     MINES.Field.Settings.InvitePlayerBox:InitNewFrame(170, 42,
-                                                "BOTTOM", MINES.Field.Settings.ChangeDifficulty, "BOTTOM", 0, -120,
+                                                "CENTER", MINES.Field.Settings.Box, "CENTER", 0, 0,
                                                 0,0,0,0, false, false, nil)
     MINES.Field.Settings.InvitePlayerBox.Text = LoutenLib:CreateNewFrame(MINES.Field.Settings.InvitePlayerBox)
     MINES.Field.Settings.InvitePlayerBox.Text:SetTextToFrame("TOPLEFT", MINES.Field.Settings.InvitePlayerBox, "TOPLEFT", 0,0, true, 12, "Пригласить игрока:")
@@ -1146,11 +1298,39 @@ function MINES:CreateInterface()
                                                                 end
                                                             end)
 
+
+
+
+
+
+
+
+
+
+
+
+
     MINES.Field.MinesLeft = LoutenLib:CreateNewFrame(MINES.Field)
-    MINES.Field.MinesLeft:InitNewFrame(50, 30,
-                                    "TOP", MINES.Field, "TOP", 150, 30,
+    MINES.Field.MinesLeft:InitNewFrame(60, 30,
+                                    "BOTTOM", MINES.Field, "TOP", 170, 0,
                                     0,0,0,.85, false, false, nil)
-    MINES.Field.MinesLeft:SetTextToFrame("CENTER", MINES.Field.MinesLeft, "CENTER", 0,0, true, 15, tostring(MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount))
+    MINES.Field.MinesLeft:SetTextToFrame("RIGHT", MINES.Field.MinesLeft, "RIGHT", -3,0, true, 15, tostring(MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount))
+    MINES.Field.MinesLeft.Icon = LoutenLib:CreateNewFrame(MINES.Field.MinesLeft)
+    MINES.Field.MinesLeft.Icon:InitNewFrame(23,23,
+                                            "LEFT", MINES.Field.MinesLeft, "LEFT", 0,0,
+                                            0,0,0,0)
+    MINES.Field.MinesLeft.Icon.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\flag.blp")
+
+
+
+
+
+
+
+
+
+
+
 
     MINES.Field.Settings.LeaveCOOP = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
     MINES.Field.Settings.LeaveCOOP:InitNewFrame(120, 23,
@@ -1168,6 +1348,19 @@ function MINES:CreateInterface()
                                                 end)
     MINES.Field.Settings.LeaveCOOP:Hide()
 
+
+
+
+
+
+
+
+
+
+
+
+
+
     MINES.Field.Settings.LeaveMeAlone = LoutenLib:CreateNewFrame(MINES.Field.Settings.Box)
     MINES.Field.Settings.LeaveMeAlone:InitNewFrame(100, 25,
                                                     "BOTTOM", MINES.Field.Settings.LeaveCOOP, "BOTTOM", -40, -40,
@@ -1179,6 +1372,16 @@ function MINES:CreateInterface()
     if (MINES_DB.Profiles[UnitName("player")].LeaveMeAlone) then
         MINES.Field.Settings.LeaveMeAlone.CheckButton:SetChecked(MINES_DB.Profiles[UnitName("player")].LeaveMeAlone)
     end
+
+
+
+
+
+
+
+
+
+
 
 
     MINES.Field.ResumeGame = LoutenLib:CreateNewFrame(MINES.Field)
@@ -1204,7 +1407,7 @@ function MINES:CreateInterface()
     MINES.Field.ResumeGame.NewGameBT:InitNewButton2(125, 255, 92, 1,
                                                     nil, function()
                                                         MINES.Field.ResumeGame:Hide()
-                                                        MINES.StartGameBT()
+                                                        MINES.StartGameButtonFunction()
                                                     end)
     MINES.Field.ResumeGame.NewGameBT:SetTextToFrame("CENTER", MINES.Field.ResumeGame.NewGameBT, "CENTER", 0,0, true, 12, "Начать новую игру")
     function MINES.RestartFieldInterface()
@@ -1218,7 +1421,43 @@ function MINES:CreateInterface()
         RestorePoint(MINES.Field.Header.CloseButton)
         RestorePoint(MINES.Field.Header.Text)
     end
+
+
+
+
+
+
+
+
+
+
+
+    MINES.Field.TimeLeft = LoutenLib:CreateNewFrame(MINES.Field)
+    MINES.Field.TimeLeft:InitNewFrame(60, 30,
+                                    "RIGHT", MINES.Field.MinesLeft, "LEFT", -10, 0,
+                                    0,0,0,.85, false, false, nil)
+    MINES.Field.TimeLeft:SetTextToFrame("RIGHT", MINES.Field.TimeLeft, "RIGHT", -3,0, true, 15, "")
+    MINES.Field.TimeLeft:Hide()
+    MINES.Field.TimeLeft.Icon = LoutenLib:CreateNewFrame(MINES.Field.TimeLeft)
+    MINES.Field.TimeLeft.Icon:InitNewFrame(23,23,
+                                            "LEFT", MINES.Field.TimeLeft, "LEFT", 0,0,
+                                            0,0,0,0)
+    MINES.Field.TimeLeft.Icon.Texture:SetTexture("Interface\\AddOns\\"..MINES.Info.FileName.."\\textures\\timer.blp")
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 GLOBALTEST = false
@@ -1232,7 +1471,7 @@ SlashCmdList.TESTTT = function(msg, editBox)
         fff:SetScript("OnUpdate", function()
             if (MINES.EndGame) then
                 _1 = _1 + 1
-                MINES.StartGameBT()
+                MINES.StartGameButtonFunction()
                 if (GLOBALTEST) then
                     fff:SetScript("OnUpdate", nil)
                     MINES.LoseGame()

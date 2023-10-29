@@ -26,18 +26,18 @@ function MINES.SetCursorTo(frame, cellId)
         MINES.PartnerCursor.LastId = MINES.PartnerCursor.LastId or cellId
 
         if (MINES.Field.Cells[cellId].Opened) then
-            MINES.Field.Cells[cellId]:SetBackdropColor(.35,.35,.35,1)
+            MINES.Field.Cells[cellId]:SetBackdropColor(MINES.GrayColor-.1,MINES.GrayColor-.1,MINES.GrayColor-.1,1)
         else
-            MINES.Field.Cells[cellId]:SetBackdropColor(.5,.5,.2,1)
+            MINES.Field.Cells[cellId]:SetBackdropColor(MINES.GreenColor,MINES.GreenColor,.2,1)
         end
         if (MINES.Field.Cells[cellId].Flag) then
             MINES.Field.Cells[cellId]:SetBackdropColor(.3,.3,.7,1)
         end
 
         if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Opened) then
-            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(.5,.5,.5,1)
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(MINES.GrayColor,MINES.GrayColor,MINES.GrayColor,1)
         else
-            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,.5,0,1)
+            MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,MINES.GreenColor,0,1)
         end
         if (MINES.Field.Cells[MINES.PartnerCursor.LastId].Flag) then
             MINES.Field.Cells[MINES.PartnerCursor.LastId]:SetBackdropColor(0,0,.7,1)
@@ -75,9 +75,12 @@ function MINES.ConnectionCheckStart()
             else
                 MINES.IsConnectionStable = false
                 MINES.ConnectionWarnings = MINES.ConnectionWarnings + 1
+
                 if (MINES.ConnectionWarnings == 1) then checkInterval = 5
                 elseif (MINES.ConnectionWarnings == 2) then checkInterval = 7 end
+
                 MINES:PrintMsg("Нет подключения со вторым игроком. Предупреждений: "..MINES.ConnectionWarnings.."/"..maxWarnings, "ff9100")
+
                 if (MINES.ConnectionWarnings == maxWarnings) then
                     MINES.IsConnectionStable = true
                     MINES.ConnectionCheckStop()
@@ -85,6 +88,7 @@ function MINES.ConnectionCheckStart()
                     MINES:PrintMsg("Подключение со вторым игроком потеряно, КООП отключен.", "cf0a0a")
                     return
                 end
+                
                 MINES.CheckTimeStart = GetTime()
                 COOP_Send_GetConnectionStatus()
             end
@@ -94,7 +98,6 @@ end
 function MINES.ConnectionCheckStop()
     MINES.ConnectionCheck:SetScript("OnUpdate", nil)
 end
-
 function MINES.DisconnectCOOP(disconnectType)
     MINES.ConnectionCheckStop()
     MINES.ConnectionStatus = false
@@ -129,6 +132,7 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             COOP_Send_GotInvite(arg4)
             MINES:Notify("Игрок "..arg4.." приглашает вас в КООП режим.", true,
                 function()
+                    MINES.StopTimeMode()
                     MINES.EndGame = true
                     MINES.DisableField()
                     MINES.PartnerName = arg4
@@ -208,6 +212,7 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             -- Создание игры
             if (arg1 == "mines_new_game" and arg4 == MINES.PartnerName and not MINES.IsHosting) then
                 local isFieldShown = MINES.Field:IsShown()
+                MINES.StopTimeMode()
                 MINES.Field:Hide()
                 MINES.DisableField()
                 MINES.ClearingField()
@@ -220,6 +225,9 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
                 MINES.MinesLeft = MINES.GameDifficulty[MINES.CurrentDifficulty].minesCount
                 MINES.Field.MinesLeft.Text:SetText(MINES.MinesLeft)
                 MINES.EndGame = false
+                if (MINES.GetMode() == 1) then
+                    MINES.Field.TimeLeft:Show()
+                end
                 COOP_Status_IsReadyCreateNewGame()
                 return
             end
@@ -240,7 +248,7 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
             end
             -- Нажатие Start Game вторым игроком
             if (arg1 == "mines_start_game_partner" and arg4 == MINES.PartnerName and MINES.IsHosting) then
-                MINES.StartGameBT()
+                MINES.StartGameButtonFunction()
                 return
             end
             -- Проверка подключения
@@ -283,6 +291,11 @@ getCOOPInfo:SetScript('OnEvent', function(s, e, arg1, arg2, arg3, arg4)
                 for i = 1, #coopMines do
                     MINES.SetFlag(tonumber(coopMines[i]))
                 end
+                return
+            end
+
+            if (arg1 == "mines_change_game_mode" and arg4 == MINES.PartnerName) then
+                MINES.ChangeMode(tonumber(arg2))
                 return
             end
 
@@ -516,8 +529,8 @@ end
 
 
 
-
--- Ошибка соединения
-function COOP_ErrorConnection(code)
-    MINES:Notify("Ошибка соединения со вторым игроком. Код ошибки:"..code.."\nБольше информации об ошибках вы найдете тут: discord.gg/TubeZVD")
+        -- Set Mode --
+-- Send
+function COOP_Send_ChangeMode(mode)
+    SendAddonMessage("mines_change_game_mode", mode, "WHISPER", MINES.PartnerName)
 end
